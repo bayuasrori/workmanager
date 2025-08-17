@@ -1,4 +1,4 @@
-import { taskStatusService } from '../../../lib/server/service';
+import { taskStatusService } from '$lib/server/service';
 import type { Actions } from './$types';
 import { redirect } from '@sveltejs/kit';
 
