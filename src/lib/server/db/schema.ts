@@ -33,6 +33,12 @@ export const project = sqliteTable('project', {
 	organizationId: text('organization_id').references(() => organization.id)
 });
 
+
+export const projectMember = sqliteTable('project_member', {
+	projectId: text('project_id').references(() => project.id),
+	userId: text('user_id').references(() => user.id)
+});
+
 export const task_status = sqliteTable('task_status', {
 	id: text('id').primaryKey(),
 	name: text('name').notNull().unique()
@@ -62,5 +68,6 @@ export type Session = typeof session.$inferSelect;
 export type Organization = typeof organization.$inferSelect;
 export type OrganizationMember = typeof organizationMember.$inferSelect;
 export type Project = typeof project.$inferSelect;
+export type ProjectMember = typeof projectMember.$inferSelect;
 export type Task = typeof task.$inferSelect;
 export type TaskStatus = typeof task_status.$inferSelect;
