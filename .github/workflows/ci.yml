@@ -10,6 +10,10 @@ on:
 
 jobs:
   build:
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DATABASE_AUTH_TOKEN: ${{ secrets.DATABASE_AUTH_TOKEN }}
+
     runs-on: ubuntu-latest
 
     steps:
@@ -27,6 +31,9 @@ jobs:
 
       - name: Run type checker
         run: bun run check
+
+      - name: Push database schema
+        run: bun run db:push
 
       - name: Build
         run: bun run build
