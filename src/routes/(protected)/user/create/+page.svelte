@@ -17,7 +17,12 @@
 			<label class="label" for="passwordHash">
 				<span class="label-text">Password Hash</span>
 			</label>
-			<input type="text" id="passwordHash" name="passwordHash" class="input input-bordered w-full" />
+			<input
+				type="text"
+				id="passwordHash"
+				name="passwordHash"
+				class="input input-bordered w-full"
+			/>
 		</div>
 		<button type="submit" class="btn btn-primary">Create</button>
 	</form>
