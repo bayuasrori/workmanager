@@ -5,6 +5,7 @@
 </script>
 
 <div class="p-4">
+	{#if data.task}
 	<h1 class="text-2xl font-bold mb-4">Edit Task: {data.task.name}</h1>
 	<form method="POST" action="?/updateTask" class="space-y-4">
 		<div>
@@ -57,4 +58,5 @@
 		</div>
 		<button type="submit" class="btn btn-primary">Update Task</button>
 	</form>
+	{/if}
 </div>

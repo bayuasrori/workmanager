@@ -11,7 +11,8 @@ export const sessionService = {
 		return await db.select().from(session);
 	},
 	create: async (item: Omit<Session, 'id'>) => {
-		return await db.insert(session).values(item);
+		const id = crypto.randomUUID();
+		return await db.insert(session).values({ ...item, id });
 	},
 	update: async (id: string, item: Partial<Omit<Session, 'id'>>) => {
 		return await db.update(session).set(item).where(eq(session.id, id));
