@@ -11,7 +11,6 @@
 			<h2 class="card-title">Login/Register</h2>
 			<p style="color: red">{form?.message ?? ''}</p>
 
-
 			<form method="post" action="?/login" use:enhance>
 				<label>
 					Username

@@ -18,7 +18,7 @@
 				<span class="label-text">Owner</span>
 			</label>
 			<select name="ownerId" class="select select-bordered w-full">
-				{#each data.users as user}
+				{#each data.users as user (user.id)}
 					<option value={user.id}>{user.username}</option>
 				{/each}
 			</select>

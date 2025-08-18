@@ -17,7 +17,7 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each data.projects as project}
+				{#each data.projects as project (project.id)}
 					<tr>
 						<td>{project.name}</td>
 						<td>{project.organizationId}</td>

@@ -17,7 +17,7 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each data.users as user}
+				{#each data.users as user (user.id)}
 					<tr>
 						<td>{user.username}</td>
 						<td>{user.age}</td>

@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { task, task_status, user, type Task, type TaskStatus } from '../db/schema';
+import { task, type Task } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 
 export const taskService = {

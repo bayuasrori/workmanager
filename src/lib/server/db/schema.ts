@@ -33,7 +33,6 @@ export const project = sqliteTable('project', {
 	organizationId: text('organization_id').references(() => organization.id)
 });
 
-
 export const projectMember = sqliteTable('project_member', {
 	projectId: text('project_id').references(() => project.id),
 	userId: text('user_id').references(() => user.id)

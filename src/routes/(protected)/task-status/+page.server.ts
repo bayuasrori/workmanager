@@ -3,15 +3,15 @@ import type { Actions, PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async () => {
-    const taskStatuses = await taskStatusService.getAll();
-    return { taskStatuses };
+	const taskStatuses = await taskStatusService.getAll();
+	return { taskStatuses };
 };
 
 export const actions: Actions = {
-    deleteStatus: async ({ request }) => {
-        const data = await request.formData();
-        const id = data.get('id') as string;
-        await taskStatusService.delete(id);
-        throw redirect(303, '/task-status');
-    }
+	deleteStatus: async ({ request }) => {
+		const data = await request.formData();
+		const id = data.get('id') as string;
+		await taskStatusService.delete(id);
+		throw redirect(303, '/task-status');
+	}
 };

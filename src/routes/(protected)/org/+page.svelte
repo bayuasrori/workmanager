@@ -17,7 +17,7 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each data.organizations as org}
+				{#each data.organizations as org (org.id)}
 					<tr>
 						<td>{org.name}</td>
 						<td>{org.ownerId}</td>

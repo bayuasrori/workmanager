@@ -6,8 +6,7 @@
 	$: availableUsers = data.users.filter(
 		(user) =>
 			!data.members.some(
-				(member) =>
-					member.organizationId === data.organization.id && member.userId === user.id
+				(member) => member.organizationId === data.organization.id && member.userId === user.id
 			)
 	);
 
@@ -23,13 +22,25 @@
 			<label class="label" for="orgName">
 				<span class="label-text">Name</span>
 			</label>
-			<input type="text" name="name" id="orgName" value={data.organization.name} class="input input-bordered w-full" />
+			<input
+				type="text"
+				name="name"
+				id="orgName"
+				value={data.organization.name}
+				class="input input-bordered w-full"
+			/>
 		</div>
 		<div>
 			<label class="label" for="ownerId">
 				<span class="label-text">Owner ID</span>
 			</label>
-			<input type="text" name="ownerId" id="ownerId" value={data.organization.ownerId} class="input input-bordered w-full" />
+			<input
+				type="text"
+				name="ownerId"
+				id="ownerId"
+				value={data.organization.ownerId}
+				class="input input-bordered w-full"
+			/>
 		</div>
 		<button type="submit" class="btn btn-primary">Update Organization</button>
 	</form>
@@ -44,7 +55,7 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each currentMembers as member}
+				{#each currentMembers as member (member.userId)}
 					<tr>
 						<td>{data.users.find((user) => user.id === member.userId)?.username}</td>
 						<td>
@@ -61,7 +72,7 @@
 	<h3 class="text-lg font-bold mb-2">Add Member</h3>
 	<form method="POST" action="?/addMember" class="flex gap-2">
 		<select name="userId" class="select select-bordered flex-grow">
-			{#each availableUsers as user}
+			{#each availableUsers as user (user.id)}
 				<option value={user.id}>{user.username}</option>
 			{/each}
 		</select>

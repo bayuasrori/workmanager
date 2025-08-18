@@ -11,7 +11,12 @@
 			<label class="label">
 				<span class="label-text">Username</span>
 			</label>
-			<input type="text" name="username" value={data.user.username} class="input input-bordered w-full" />
+			<input
+				type="text"
+				name="username"
+				value={data.user.username}
+				class="input input-bordered w-full"
+			/>
 		</div>
 		<div>
 			<label class="label">
@@ -23,7 +28,12 @@
 			<label class="label">
 				<span class="label-text">Password Hash</span>
 			</label>
-			<input type="text" name="passwordHash" value={data.user.passwordHash} class="input input-bordered w-full" />
+			<input
+				type="text"
+				name="passwordHash"
+				value={data.user.passwordHash}
+				class="input input-bordered w-full"
+			/>
 		</div>
 		<button type="submit" class="btn btn-primary">Update</button>
 	</form>

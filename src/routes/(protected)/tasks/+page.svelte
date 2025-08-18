@@ -18,7 +18,7 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each data.tasks as task}
+				{#each data.tasks as task (task.id)}
 					<tr>
 						<td>{task.name}</td>
 						<td>{task.projectId}</td>

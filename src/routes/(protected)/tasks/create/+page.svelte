@@ -18,7 +18,7 @@
 				<span class="label-text">Project</span>
 			</label>
 			<select name="projectId" id="projectId" class="select select-bordered w-full">
-				{#each data.projects as project}
+				{#each data.projects as project (project.id)}
 					<option value={project.id}>{project.name}</option>
 				{/each}
 			</select>
@@ -28,7 +28,7 @@
 				<span class="label-text">Assignee</span>
 			</label>
 			<select name="assigneeId" id="assigneeId" class="select select-bordered w-full">
-				{#each data.users as user}
+				{#each data.users as user (user.id)}
 					<option value={user.id}>{user.username}</option>
 				{/each}
 			</select>
@@ -38,7 +38,7 @@
 				<span class="label-text">Status</span>
 			</label>
 			<select name="statusId" id="statusId" class="select select-bordered w-full">
-				{#each data.taskStatuses as status}
+				{#each data.taskStatuses as status (status.id)}
 					<option value={status.id}>{status.name}</option>
 				{/each}
 			</select>
