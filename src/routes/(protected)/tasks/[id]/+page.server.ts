@@ -6,7 +6,13 @@ export const load: PageServerLoad = async ({ params }) => {
 	const task = await taskService.getById(params.id);
 	const projects = await projectService.getAll();
 	const users = await userService.getAll();
-	const taskStatuses = await taskStatusService.getAll();
+	
+	// Get task statuses for the task's project
+	let taskStatuses = [];
+	if (task && task.projectId) {
+		taskStatuses = await taskStatusService.getByProjectId(task.projectId);
+	}
+	
 	return { task, projects, users, taskStatuses };
 };
 

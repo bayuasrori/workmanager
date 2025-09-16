@@ -16,7 +16,7 @@
 				<span class="label-text">Organization</span>
 			</label>
 			<select name="organizationId" id="organizationId" class="select select-bordered w-full">
-				{#each data.organizations as org (org.id)}
+				{#each data.data.organizations as org (org.id)}
 					<option value={org.id}>{org.name}</option>
 				{/each}
 			</select>

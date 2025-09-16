@@ -14,13 +14,13 @@
 			<input type="number" id="age" name="age" class="input input-bordered w-full" />
 		</div>
 		<div>
-			<label class="label" for="passwordHash">
-				<span class="label-text">Password Hash</span>
+			<label class="label" for="password">
+				<span class="label-text">Password</span>
 			</label>
 			<input
 				type="text"
-				id="passwordHash"
-				name="passwordHash"
+				id="password"
+				name="password"
 				class="input input-bordered w-full"
 			/>
 		</div>

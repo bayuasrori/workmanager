@@ -12,7 +12,8 @@ export const organizationService = {
 	},
 	create: async (item: Omit<Organization, 'id'>) => {
 		const id = crypto.randomUUID();
-		return await db.insert(organization).values({ ...item, id });
+		const inserted = await db.insert(organization).values({ ...item, id }).returning();
+		return inserted[0];
 	},
 	update: async (id: string, item: Partial<Omit<Organization, 'id'>>) => {
 		return await db.update(organization).set(item).where(eq(organization.id, id));

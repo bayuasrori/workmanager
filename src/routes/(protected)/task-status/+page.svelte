@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import type { PageData } from './$types';
 
 	export let data: PageData;
@@ -23,7 +24,7 @@
 							<td>{status.name}</td>
 							<td>
 								<a href="/task-status/{status.id}" class="btn btn-sm btn-info mr-2">Edit</a>
-								<form method="POST" action="?/deleteStatus" class="inline-block">
+								<form method="POST" action="?/deleteStatus" class="inline-block" use:enhance>
 									<input type="hidden" name="id" value={status.id} />
 									<button type="submit" class="btn btn-sm btn-error">Delete</button>
 								</form>

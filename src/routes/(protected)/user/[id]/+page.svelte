@@ -33,14 +33,24 @@
 				/>
 			</div>
 			<div>
-				<label class="label" for="passwordHash">
-					<span class="label-text">Password Hash</span>
+				<label class="label" for="oldPassword">
+					<span class="label-text">Old Password</span>
 				</label>
 				<input
-					type="text"
-					name="passwordHash"
-					id="passwordHash"
-					value={data.user.passwordHash}
+					type="password"
+					name="oldPassword"
+					id="oldPassword"
+					class="input input-bordered w-full"
+				/>
+			</div>
+			<div>
+				<label class="label" for="newPassword">
+					<span class="label-text">New Password</span>
+				</label>
+				<input
+					type="password"
+					name="newPassword"
+					id="newPassword"
 					class="input input-bordered w-full"
 				/>
 			</div>

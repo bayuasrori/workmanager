@@ -30,7 +30,10 @@ export const organizationMember = sqliteTable('organization_member', {
 export const project = sqliteTable('project', {
 	id: text('id').primaryKey(),
 	name: text('name').notNull(),
-	organizationId: text('organization_id').references(() => organization.id)
+	description: text('description'),
+	slug: text('slug').unique(),
+	organizationId: text('organization_id').references(() => organization.id),
+	isPublic: integer('is_public', { mode: 'boolean' }).default(false)
 });
 
 export const projectMember = sqliteTable('project_member', {
@@ -40,18 +43,40 @@ export const projectMember = sqliteTable('project_member', {
 
 export const task_status = sqliteTable('task_status', {
 	id: text('id').primaryKey(),
-	name: text('name').notNull().unique()
+	name: text('name').notNull(),
+	order: integer('order'),
+	projectId: text('project_id').references(() => project.id)
 });
 
 export const task = sqliteTable('task', {
 	id: text('id').primaryKey(),
 	name: text('name').notNull(),
+	description: text('description'),
 	projectId: text('project_id').references(() => project.id),
 	assigneeId: text('assignee_id').references(() => user.id),
-	statusId: text('status_id').references(() => task_status.id)
+	statusId: text('status_id').references(() => task_status.id),
+	startDate: integer('start_date', { mode: 'timestamp' }),
+	endDate: integer('end_date', { mode: 'timestamp' })
 });
 
-export const taskRelations = relations(task, ({ one }) => ({
+export const taskComment = sqliteTable('task_comment', {
+	id: text('id').primaryKey(),
+	content: text('content').notNull(),
+	taskId: text('task_id').references(() => task.id),
+	userId: text('user_id').references(() => user.id),
+	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
+});
+
+
+export const projectRelations = relations(project, ({ one, many }) => ({
+	organization: one(organization, {
+		fields: [project.organizationId],
+		references: [organization.id]
+	}),
+	tasks: many(task)
+}));
+
+export const taskRelations = relations(task, ({ one, many }) => ({
 	assignee: one(user, {
 		fields: [task.assigneeId],
 		references: [user.id]
@@ -59,8 +84,22 @@ export const taskRelations = relations(task, ({ one }) => ({
 	status: one(task_status, {
 		fields: [task.statusId],
 		references: [task_status.id]
-	})
+	}),
+	project: one(project, {
+		fields: [task.projectId],
+		references: [project.id]
+	}),
+	comments: many(taskComment)
 }));
+
+export const taskStatusRelations = relations(task_status, ({ one, many }) => ({
+	project: one(project, {
+		fields: [task_status.projectId],
+		references: [project.id]
+	}),
+	tasks: many(task)
+}));
+
 
 export type User = typeof user.$inferSelect;
 export type Session = typeof session.$inferSelect;

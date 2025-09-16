@@ -2,10 +2,17 @@ import { taskService, projectService, userService, taskStatusService } from '$li
 import type { Actions, PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ url }) => {
 	const projects = await projectService.getAll();
 	const users = await userService.getAll();
-	const taskStatuses = await taskStatusService.getAll();
+	
+	// Get task statuses for the selected project, or all if no project selected
+	const projectId = url.searchParams.get('projectId');
+	let taskStatuses = [];
+	if (projectId) {
+		taskStatuses = await taskStatusService.getByProjectId(projectId);
+	}
+	
 	return { projects, users, taskStatuses };
 };
 
