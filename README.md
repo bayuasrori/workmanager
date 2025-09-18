@@ -1,4 +1,4 @@
-# WorkManager
+# Papanin
 
 A full-stack work management application built with SvelteKit, Drizzle ORM, and Tailwind CSS.
 
@@ -30,7 +30,7 @@ A full-stack work management application built with SvelteKit, Drizzle ORM, and 
 
     ```sh
     git clone <repository-url>
-    cd workmanager
+    cd papanin
     ```
 
 2.  Install dependencies:

@@ -38,8 +38,7 @@ export const taskService = {
 		});
 	},
 	getUserTaskCount: async (userId: string) => {
-		return await db.select({ count: count()}).from(task)
-			.where(eq(task.assigneeId, userId))
+		return await db.select({ count: count() }).from(task).where(eq(task.assigneeId, userId));
 	},
 	getUserTasks: async (userId: string) => {
 		return await db.query.task.findMany({

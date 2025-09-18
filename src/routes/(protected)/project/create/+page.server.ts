@@ -11,8 +11,18 @@ export const actions: Actions = {
 	default: async ({ request }) => {
 		const data = await request.formData();
 		const name = data.get('name') as string;
-		const organizationId = data.get('organizationId') as string;
-		await projectService.create({ name, organizationId });
+		const organizationIdField = data.get('organizationId');
+		const organizationId =
+			typeof organizationIdField === 'string' && organizationIdField.length > 0
+				? organizationIdField
+				: null;
+		await projectService.create({
+			name,
+			description: null,
+			slug: null,
+			organizationId,
+			isPublic: false
+		});
 		throw redirect(303, '/project');
 	}
 };

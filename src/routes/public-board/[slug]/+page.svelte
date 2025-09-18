@@ -1,16 +1,22 @@
-
 <script lang="ts">
-	import { page } from '$app/state';
-	import { get } from 'svelte/store';
 	import KanbanBoard from '$lib/components/KanbanBoard.svelte';
 	import type { PageData } from './$types';
-	import { invalidate, invalidateAll } from '$app/navigation';
-	import { load } from './data.remote';
+
+	const STATUS_DRAG_TYPE = 'application/task-status-id';
+	const TASK_DRAG_TYPE = 'application/task-id';
+
+	type Board = PageData['board'];
+	type BoardTask = Board['tasks'][number];
+	type UpdateTaskResponse = {
+		success?: boolean;
+		task?: Partial<BoardTask> & { id: string };
+	};
 
 	let { data }: { data: PageData } = $props();
 	let board = $state(data.board);
+	let taskStatuses = $state(data.board.taskStatuses);
+	let statusDragSourceId: string | null = $state(null);
 	let kanbanKey = $state(0);
-	
 
 	// Removed sync effect to avoid unnecessary re-renders
 
@@ -39,9 +45,21 @@
 		}
 	}
 
+	function hasStatusDrag(event: DragEvent) {
+		const types = event.dataTransfer?.types;
+		if (!types) return false;
+		const candidate = types as unknown as DOMStringList & { contains?: (value: string) => boolean };
+		if (typeof candidate.contains === 'function') {
+			return candidate.contains(STATUS_DRAG_TYPE);
+		}
+		const iterable = types as unknown as Iterable<string>;
+		return Array.from(iterable).includes(STATUS_DRAG_TYPE);
+	}
+
 	function dragStart(event: DragEvent, taskId: string) {
-		event.dataTransfer?.setData('text/plain', taskId);
 		if (event.dataTransfer) {
+			event.dataTransfer.setData('text/plain', taskId);
+			event.dataTransfer.setData(TASK_DRAG_TYPE, taskId);
 			event.dataTransfer.effectAllowed = 'move';
 		}
 	}
@@ -56,7 +74,11 @@
 
 	async function drop(event: DragEvent, newStatusId: string) {
 		event.preventDefault();
-		const taskId = event.dataTransfer?.getData('text/plain');
+		const transfer = event.dataTransfer;
+		if (transfer && hasStatusDrag(event)) {
+			return;
+		}
+		const taskId = transfer?.getData(TASK_DRAG_TYPE) || transfer?.getData('text/plain');
 		if (taskId) {
 			// Optimistically update the task status
 			const taskToUpdate = board.tasks.find((t) => t.id === taskId);
@@ -87,17 +109,82 @@
 		}
 	}
 
+	function statusDragStart(event: DragEvent, statusId: string) {
+		statusDragSourceId = statusId;
+		if (event.dataTransfer) {
+			event.dataTransfer.setData(STATUS_DRAG_TYPE, statusId);
+			event.dataTransfer.setData('text/plain', statusId);
+			event.dataTransfer.effectAllowed = 'move';
+		}
+		event.stopPropagation();
+	}
+
+	function statusDragEnd() {
+		statusDragSourceId = null;
+	}
+
+	function statusDragOver(event: DragEvent, targetStatusId: string) {
+		if (!hasStatusDrag(event)) {
+			return;
+		}
+		if (!statusDragSourceId || statusDragSourceId === targetStatusId) {
+			return;
+		}
+		event.preventDefault();
+		if (event.dataTransfer) {
+			event.dataTransfer.dropEffect = 'move';
+		}
+	}
+
+	async function statusDrop(event: DragEvent, targetStatusId: string) {
+		if (!hasStatusDrag(event)) {
+			return;
+		}
+		event.preventDefault();
+		const draggedId = event.dataTransfer?.getData(STATUS_DRAG_TYPE) || statusDragSourceId;
+		if (!draggedId || draggedId === targetStatusId) {
+			return;
+		}
+		const currentStatuses = [...taskStatuses];
+		const fromIndex = currentStatuses.findIndex((status) => status.id === draggedId);
+		const toIndex = currentStatuses.findIndex((status) => status.id === targetStatusId);
+		if (fromIndex === -1 || toIndex === -1) {
+			return;
+		}
+		const previous = [...currentStatuses];
+		const [moved] = currentStatuses.splice(fromIndex, 1);
+		currentStatuses.splice(toIndex, 0, moved);
+		taskStatuses = currentStatuses;
+		board = { ...board, taskStatuses: currentStatuses };
+		statusDragEnd();
+		try {
+			const formData = new FormData();
+			formData.append('orderedIds', JSON.stringify(currentStatuses.map((status) => status.id)));
+			const response = await fetch('?/reorderStatuses', {
+				method: 'POST',
+				body: formData
+			});
+			if (!response.ok) {
+				throw new Error('Failed to persist status order');
+			}
+		} catch (error) {
+			console.error('Failed to reorder statuses', error);
+			taskStatuses = previous;
+			board = { ...board, taskStatuses: previous };
+		}
+	}
+
 	async function handleCreateStatus() {
 		if (!newStatusName.trim()) return;
-		
+
 		const formData = new FormData();
 		formData.append('name', newStatusName.trim());
-		
+
 		const response = await fetch('?/createStatus', {
 			method: 'POST',
 			body: formData
 		});
-		
+
 		if (response.ok) {
 			// Reload the page to get the new status
 			window.location.reload();
@@ -108,7 +195,7 @@
 		if (!newTaskName.trim() || isCreatingTask) return;
 
 		// Determine status to use (column or dropdown), fallback to first status
-		const statusToUse = creatingStatusId || newTaskStatusId || board.taskStatuses?.[0]?.id || '';
+		const statusToUse = creatingStatusId || newTaskStatusId || taskStatuses?.[0]?.id || '';
 
 		// Capture values before clearing
 		const nameToSend = newTaskName.trim();
@@ -131,15 +218,16 @@
 			if (response.ok) {
 				const slug = board.slug;
 				const responseTasks = await fetch(`/public-board/${slug}/tasks`);
-				const result = await responseTasks.json();
+				const result: Board = await responseTasks.json();
 
 				board = result;
+				taskStatuses = result.taskStatuses;
 				kanbanKey += 1;
 				// Clear form now that request succeeded
 				cancelCreateTask();
 			}
-		} catch (_) {
-			// On error, do nothing - user can try again
+		} catch (error) {
+			console.error('Failed to create task', error);
 		} finally {
 			isCreatingTask = false;
 		}
@@ -180,7 +268,7 @@
 			body: formData
 		});
 		if (response.ok) {
-			const result: any = await response.json();
+			const result = (await response.json()) as UpdateTaskResponse;
 			if (result?.task) {
 				const idx = board.tasks.findIndex((t) => t.id === taskId);
 				if (idx !== -1) {
@@ -201,12 +289,10 @@
 <!-- Navigation -->
 <nav class="navbar bg-base-100 shadow-sm">
 	<div class="navbar-start">
-		<a href="/" class="btn btn-ghost text-xl font-bold text-primary">WorkManager</a>
+		<a href="/" class="btn btn-ghost text-xl font-bold text-primary">Papanin</a>
 	</div>
 	<div class="navbar-end">
-		<button class="btn btn-outline btn-sm" onclick={handleShare}>
-			Share
-		</button>
+		<button class="btn btn-outline btn-sm" onclick={handleShare}> Share </button>
 		<a href="/public-board/create" class="btn btn-accent btn-sm">Create Board</a>
 	</div>
 </nav>
@@ -219,99 +305,108 @@
 			{#if board.description}
 				<p class="text-base-content/70 mb-2">{board.description}</p>
 			{/if}
-		<div class="flex items-center gap-4 text-sm text-base-content/60">
-			<span>Public Board</span>
-			<span>•</span>
-			<span>{board.tasks.length} tasks</span>
-		</div>
-		<div class="flex gap-2 mt-4">
-			<button class="btn btn-secondary btn-sm" onclick={() => showCreateStatus = !showCreateStatus}>
-				Add Status Column
-			</button>
-		</div>
-	</div>
-
-	{#if showCreateTask}
-		<div class="card bg-base-200 shadow-lg mb-4">
-			<div class="card-body">
-				<h3 class="card-title mb-4">Create New Task</h3>
-				<div class="grid grid-cols-1 md:grid-cols-6 gap-2 items-start">
-					<input
-						type="text"
-						placeholder="Task name"
-						class="input input-bordered md:col-span-2"
-						bind:value={newTaskName}
-						disabled={isCreatingTask}
-						onkeydown={(e) => e.key === 'Enter' && !isCreatingTask && handleCreateTask()}
-					/>
-					<input
-						type="text"
-						placeholder="Description (optional)"
-						class="input input-bordered md:col-span-3"
-						bind:value={newTaskDescription}
-						disabled={isCreatingTask}
-						onkeydown={(e) => e.key === 'Enter' && !isCreatingTask && handleCreateTask()}
-					/>
-					<select class="select select-bordered md:col-span-1" bind:value={newTaskStatusId} disabled={isCreatingTask}>
-						<option value="">Select status (optional)</option>
-						{#each board.taskStatuses as s}
-							<option value={s.id}>{s.name}</option>
-						{/each}
-					</select>
-				</div>
-				<div class="flex gap-2 mt-3">
-					<button class="btn btn-primary" onclick={handleCreateTask} disabled={isCreatingTask}>
-						{#if isCreatingTask}
-							<span class="loading loading-spinner loading-sm"></span>
-							Creating...
-						{:else}
-							Create
-						{/if}
-					</button>
-					<button class="btn btn-outline" onclick={() => (showCreateTask = false)} disabled={isCreatingTask}>Cancel</button>
-				</div>
+			<div class="flex items-center gap-4 text-sm text-base-content/60">
+				<span>Public Board</span>
+				<span>•</span>
+				<span>{board.tasks.length} tasks</span>
+			</div>
+			<div class="flex gap-2 mt-4">
+				<button
+					class="btn btn-secondary btn-sm"
+					onclick={() => (showCreateStatus = !showCreateStatus)}
+				>
+					Add Status Column
+				</button>
 			</div>
 		</div>
-	{/if}
 
-	{#if showCreateStatus}
-		<div class="card bg-base-200 shadow-lg mb-4">
-			<div class="card-body">
-				<h3 class="card-title mb-4">Create New Status</h3>
-				<div class="flex gap-2">
-					<input
-						type="text"
-						placeholder="Status name"
-						class="input input-bordered flex-1"
-						bind:value={newStatusName}
-						onkeydown={(e) => e.key === 'Enter' && handleCreateStatus()}
-					/>
-					<button class="btn btn-primary" onclick={handleCreateStatus}>
-						Create
-					</button>
-					<button class="btn btn-outline" onclick={() => showCreateStatus = false}>
-						Cancel
-					</button>
+		{#if showCreateTask}
+			<div class="card bg-base-200 shadow-lg mb-4">
+				<div class="card-body">
+					<h3 class="card-title mb-4">Create New Task</h3>
+					<div class="grid grid-cols-1 md:grid-cols-6 gap-2 items-start">
+						<input
+							type="text"
+							placeholder="Task name"
+							class="input input-bordered md:col-span-2"
+							bind:value={newTaskName}
+							disabled={isCreatingTask}
+							onkeydown={(e) => e.key === 'Enter' && !isCreatingTask && handleCreateTask()}
+						/>
+						<input
+							type="text"
+							placeholder="Description (optional)"
+							class="input input-bordered md:col-span-3"
+							bind:value={newTaskDescription}
+							disabled={isCreatingTask}
+							onkeydown={(e) => e.key === 'Enter' && !isCreatingTask && handleCreateTask()}
+						/>
+						<select
+							class="select select-bordered md:col-span-1"
+							bind:value={newTaskStatusId}
+							disabled={isCreatingTask}
+						>
+							<option value="">Select status (optional)</option>
+							{#each taskStatuses as s (s.id)}
+								<option value={s.id}>{s.name}</option>
+							{/each}
+						</select>
+					</div>
+					<div class="flex gap-2 mt-3">
+						<button class="btn btn-primary" onclick={handleCreateTask} disabled={isCreatingTask}>
+							{#if isCreatingTask}
+								<span class="loading loading-spinner loading-sm"></span>
+								Creating...
+							{:else}
+								Create
+							{/if}
+						</button>
+						<button
+							class="btn btn-outline"
+							onclick={() => (showCreateTask = false)}
+							disabled={isCreatingTask}>Cancel</button
+						>
+					</div>
 				</div>
 			</div>
-		</div>
-	{/if}
+		{/if}
+
+		{#if showCreateStatus}
+			<div class="card bg-base-200 shadow-lg mb-4">
+				<div class="card-body">
+					<h3 class="card-title mb-4">Create New Status</h3>
+					<div class="flex gap-2">
+						<input
+							type="text"
+							placeholder="Status name"
+							class="input input-bordered flex-1"
+							bind:value={newStatusName}
+							onkeydown={(e) => e.key === 'Enter' && handleCreateStatus()}
+						/>
+						<button class="btn btn-primary" onclick={handleCreateStatus}> Create </button>
+						<button class="btn btn-outline" onclick={() => (showCreateStatus = false)}>
+							Cancel
+						</button>
+					</div>
+				</div>
+			</div>
+		{/if}
 
 		<KanbanBoard
 			tasks={board.tasks}
-			taskStatuses={board.taskStatuses}
-			kanbanKey={kanbanKey}
-			showCreateTask={showCreateTask}
-			showCreateStatus={showCreateStatus}
-			newTaskName={newTaskName}
-			newTaskDescription={newTaskDescription}
-			newTaskStatusId={newTaskStatusId}
-			newStatusName={newStatusName}
-			creatingStatusId={creatingStatusId}
-			isCreatingTask={isCreatingTask}
-			editingTaskId={editingTaskId}
-			editTaskName={editTaskName}
-			editTaskDescription={editTaskDescription}
+			{taskStatuses}
+			{kanbanKey}
+			{showCreateTask}
+			{showCreateStatus}
+			{newTaskName}
+			{newTaskDescription}
+			{newTaskStatusId}
+			{newStatusName}
+			{creatingStatusId}
+			{isCreatingTask}
+			{editingTaskId}
+			{editTaskName}
+			{editTaskDescription}
 			onCreateTask={handleCreateTask}
 			onCreateStatus={handleCreateStatus}
 			onStartCreateTaskForStatus={startCreateTaskForStatus}
@@ -335,12 +430,16 @@
 			onDrop={drop}
 			onAllowDrop={allowDrop}
 			onDragEnter={dragEnter}
-			onNewStatusNameChange={(value) => newStatusName = value}
-			onNewTaskNameChange={(value) => newTaskName = value}
-			onNewTaskDescriptionChange={(value) => newTaskDescription = value}
-			onNewTaskStatusIdChange={(value) => newTaskStatusId = value}
-			onEditTaskNameChange={(value) => editTaskName = value}
-			onEditTaskDescriptionChange={(value) => editTaskDescription = value}
+			onStatusDragStart={statusDragStart}
+			onStatusDragEnd={statusDragEnd}
+			onStatusDragOver={statusDragOver}
+			onStatusDrop={statusDrop}
+			onNewStatusNameChange={(value) => (newStatusName = value)}
+			onNewTaskNameChange={(value) => (newTaskName = value)}
+			onNewTaskDescriptionChange={(value) => (newTaskDescription = value)}
+			onNewTaskStatusIdChange={(value) => (newTaskStatusId = value)}
+			onEditTaskNameChange={(value) => (editTaskName = value)}
+			onEditTaskDescriptionChange={(value) => (editTaskDescription = value)}
 			showInlineCreate={true}
 			showTaskActions={true}
 			taskLinkPrefix=""

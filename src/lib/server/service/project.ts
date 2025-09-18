@@ -26,7 +26,10 @@ export const projectService = {
 	},
 	create: async (item: Omit<Project, 'id'>) => {
 		const id = crypto.randomUUID();
-		const inserted = await db.insert(project).values({ ...item, id }).returning();
+		const inserted = await db
+			.insert(project)
+			.values({ ...item, id })
+			.returning();
 		return inserted[0];
 	},
 	update: async (id: string, item: Partial<Omit<Project, 'id'>>) => {

@@ -4,14 +4,14 @@ import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, setHeaders }) => {
 	const board = await publicBoardService.getBySlug(params.slug);
-	
+
 	if (!board) {
 		throw error(404, 'Public board not found');
 	}
 
 	setHeaders({
-        'cache-control': 'no-store'
-    });
+		'cache-control': 'no-store'
+	});
 
 	return { board };
 };
@@ -21,11 +21,11 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const taskId = data.get('taskId') as string;
 		const newStatusId = data.get('newStatusId') as string;
-		
+
 		if (!taskId || !newStatusId) {
 			return fail(400, { success: false, error: 'Missing taskId or newStatusId' });
 		}
-		
+
 		await publicBoardService.updateTaskStatus(taskId, newStatusId);
 		return { success: true };
 	},
@@ -39,17 +39,17 @@ export const actions: Actions = {
 	createStatus: async ({ request, params }) => {
 		const data = await request.formData();
 		const name = data.get('name') as string;
-		
+
 		if (!name || name.trim().length === 0) {
 			return fail(400, { success: false, error: 'Status name is required' });
 		}
-		
+
 		// Get the board to find the project ID
 		const board = await publicBoardService.getBySlug(params.slug);
 		if (!board) {
 			return fail(404, { success: false, error: 'Board not found' });
 		}
-		
+
 		await taskStatusService.createForProject(board.id, name.trim());
 		return { success: true };
 	},
@@ -68,7 +68,7 @@ export const actions: Actions = {
 			return fail(404, { success: false, error: 'Board not found' });
 		}
 
-		const created = await publicBoardService.addTask(board.id, {
+		await publicBoardService.addTask(board.id, {
 			name: name.trim(),
 			description: description.trim() || undefined,
 			statusId: statusId || undefined
@@ -79,9 +79,41 @@ export const actions: Actions = {
 			return fail(404, { success: false, error: 'Board not found' });
 		}
 
-		console.log('New board:', newBoard);
-
 		return { board: newBoard };
+	},
+	reorderStatuses: async ({ request, params }) => {
+		try {
+			const formData = await request.formData();
+			const raw = formData.get('orderedIds');
+			if (typeof raw !== 'string') {
+				return fail(400, { success: false, error: 'Invalid payload' });
+			}
+			let orderedIds: string[] = [];
+			try {
+				const parsed = JSON.parse(raw);
+				if (Array.isArray(parsed)) {
+					orderedIds = parsed.map(String);
+				}
+			} catch (error) {
+				console.error('Failed to parse reordered status payload', error);
+				return fail(400, { success: false, error: 'Invalid payload' });
+			}
+
+			if (orderedIds.length === 0) {
+				return fail(400, { success: false, error: 'No status IDs provided' });
+			}
+
+			const board = await publicBoardService.getBySlug(params.slug);
+			if (!board) {
+				return fail(404, { success: false, error: 'Board not found' });
+			}
+
+			await taskStatusService.reorderForProject(board.id, orderedIds);
+			return { success: true };
+		} catch (error) {
+			console.error('Failed to reorder statuses', error);
+			return fail(500, { success: false, error: 'Failed to reorder statuses' });
+		}
 	},
 	updateTask: async ({ request }) => {
 		const data = await request.formData();

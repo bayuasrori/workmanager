@@ -1,8 +1,16 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import KanbanBoard from '$lib/components/KanbanBoard.svelte';
 	import type { PageData } from './$types';
-	
+
+	const STATUS_DRAG_TYPE = 'application/task-status-id';
+	const TASK_DRAG_TYPE = 'application/task-id';
+
+	type ProjectTask = PageData['tasks'][number];
+	type UpdateTaskResponse = {
+		success?: boolean;
+		task?: Partial<ProjectTask> & { id: string };
+	};
+
 	let { data }: { data: PageData } = $props();
 
 	let showCreateStatus = $state(false);
@@ -13,13 +21,19 @@
 	let newTaskDescription = $state('');
 	let newTaskStatusId = $state('');
 	let creatingStatusId = $state('');
+	let statusDragSourceId: string | null = $state(null);
 	let isCreatingTask = $state(false);
 	let editingTaskId: string | null = $state(null);
 	let editTaskName = $state('');
 	let editTaskDescription = $state('');
+	let taskStatuses = $state(data.taskStatuses);
 
 	function confirmAndDelete() {
-		if (confirm('Are you sure you want to delete this project? This will permanently delete all tasks and statuses.')) {
+		if (
+			confirm(
+				'Are you sure you want to delete this project? This will permanently delete all tasks and statuses.'
+			)
+		) {
 			const form = document.createElement('form');
 			form.method = 'POST';
 			form.action = '?/deleteProject';
@@ -28,9 +42,21 @@
 		}
 	}
 
+	function hasStatusDrag(event: DragEvent) {
+		const types = event.dataTransfer?.types;
+		if (!types) return false;
+		const candidate = types as unknown as DOMStringList & { contains?: (value: string) => boolean };
+		if (typeof candidate.contains === 'function') {
+			return candidate.contains(STATUS_DRAG_TYPE);
+		}
+		const iterable = types as unknown as Iterable<string>;
+		return Array.from(iterable).includes(STATUS_DRAG_TYPE);
+	}
+
 	function dragStart(event: DragEvent, taskId: string) {
-		event.dataTransfer?.setData('text/plain', taskId);
 		if (event.dataTransfer) {
+			event.dataTransfer.setData('text/plain', taskId);
+			event.dataTransfer.setData(TASK_DRAG_TYPE, taskId);
 			event.dataTransfer.effectAllowed = 'move';
 		}
 	}
@@ -45,9 +71,12 @@
 
 	async function drop(event: DragEvent, newStatusId: string) {
 		event.preventDefault();
-		const taskId = event.dataTransfer?.getData('text/plain');
+		const transfer = event.dataTransfer;
+		if (transfer && hasStatusDrag(event)) {
+			return;
+		}
+		const taskId = transfer?.getData(TASK_DRAG_TYPE) || transfer?.getData('text/plain');
 		if (taskId) {
-			// Optimistic move
 			const taskToUpdate = data.tasks.find((t) => t.id === taskId);
 			let oldStatusId: string | null | undefined;
 			if (taskToUpdate) {
@@ -74,27 +103,111 @@
 		}
 	}
 
+	function statusDragStart(event: DragEvent, statusId: string) {
+		statusDragSourceId = statusId;
+		if (event.dataTransfer) {
+			event.dataTransfer.setData(STATUS_DRAG_TYPE, statusId);
+			event.dataTransfer.setData('text/plain', statusId);
+			event.dataTransfer.effectAllowed = 'move';
+		}
+		event.stopPropagation();
+	}
+
+	function statusDragEnd() {
+		statusDragSourceId = null;
+	}
+
+	function statusDragOver(event: DragEvent, targetStatusId: string) {
+		if (!hasStatusDrag(event)) {
+			return;
+		}
+		if (!statusDragSourceId || statusDragSourceId === targetStatusId) {
+			return;
+		}
+		event.preventDefault();
+		if (event.dataTransfer) {
+			event.dataTransfer.dropEffect = 'move';
+		}
+	}
+
+	async function statusDrop(event: DragEvent, targetStatusId: string) {
+		if (!hasStatusDrag(event)) {
+			return;
+		}
+		event.preventDefault();
+		const draggedId = event.dataTransfer?.getData(STATUS_DRAG_TYPE) || statusDragSourceId;
+		if (!draggedId || draggedId === targetStatusId) {
+			return;
+		}
+		const currentStatuses = [...taskStatuses];
+		const fromIndex = currentStatuses.findIndex((status) => status.id === draggedId);
+		const toIndex = currentStatuses.findIndex((status) => status.id === targetStatusId);
+		if (fromIndex === -1 || toIndex === -1) {
+			return;
+		}
+		const previous = [...currentStatuses];
+		const [moved] = currentStatuses.splice(fromIndex, 1);
+		currentStatuses.splice(toIndex, 0, moved);
+		taskStatuses = currentStatuses;
+		statusDragEnd();
+		try {
+			const formData = new FormData();
+			formData.append('orderedIds', JSON.stringify(currentStatuses.map((status) => status.id)));
+			const response = await fetch('?/reorderStatuses', {
+				method: 'POST',
+				body: formData
+			});
+			// let id = data.project.id
+			// const responseTasks = await fetch(`/project/${id}/tasks/task-status`);
+			// const result = await responseTasks.json();
+
+			// taskStatuses = result;
+			if (!response.ok) {
+				throw new Error('Failed to persist status order');
+			}
+		} catch (error) {
+			console.error('Failed to reorder statuses', error);
+			taskStatuses = previous;
+		}
+	}
+
 	async function handleCreateStatus() {
-		if (!newStatusName.trim()) return;
-		
+		const trimmedName = newStatusName.trim();
+		if (!trimmedName) return;
+
 		const formData = new FormData();
-		formData.append('name', newStatusName.trim());
-		
-		const response = await fetch('?/createStatus', {
-			method: 'POST',
-			body: formData
-		});
-		
-		if (response.ok) {
-			// Reload the page to get the new status
-			window.location.reload();
+		formData.append('name', trimmedName);
+
+		try {
+			const response = await fetch('?/createStatus', {
+				method: 'POST',
+				body: formData
+			});
+
+			if (!response.ok) {
+				throw new Error(`Failed to create status (${response.status})`);
+			}
+
+			const result = await response.json().catch(() => null);
+			const createdStatus = result?.status;
+			if (createdStatus) {
+				const updatedStatuses = [...taskStatuses, createdStatus];
+				updatedStatuses.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+				taskStatuses = updatedStatuses;
+				kanbanKey += 1;
+				newStatusName = '';
+				showCreateStatus = false;
+				statusDragSourceId = null;
+			}
+		} catch (error) {
+			console.error('Failed to create status', error);
 		}
 	}
 
 	async function handleCreateTask() {
 		if (!newTaskName.trim() || isCreatingTask) return;
 
-		const statusToUse = creatingStatusId || newTaskStatusId || data.taskStatuses?.[0]?.id || '';
+		const statusToUse = creatingStatusId || newTaskStatusId || taskStatuses?.[0]?.id || '';
 		const nameToSend = newTaskName.trim();
 		const descToSend = newTaskDescription.trim();
 
@@ -113,11 +226,10 @@
 			});
 
 			if (response.ok) {
-				// Reload the page to get the new task
 				window.location.reload();
 			}
-		} catch (_) {
-			// On error, do nothing - user can try again
+		} catch (error) {
+			console.error('Failed to create task', error);
 		} finally {
 			isCreatingTask = false;
 		}
@@ -158,7 +270,7 @@
 			body: formData
 		});
 		if (response.ok) {
-			const result: any = await response.json();
+			const result = (await response.json()) as UpdateTaskResponse;
 			if (result?.task) {
 				const idx = data.tasks.findIndex((t) => t.id === taskId);
 				if (idx !== -1) {
@@ -178,7 +290,7 @@
 		formData.append('taskId', taskId);
 		const res = await fetch(`/tasks/${taskId}`, { method: 'DELETE', body: formData });
 		if (!res.ok) {
-			data.tasks = prev; // revert
+			data.tasks = prev;
 			kanbanKey += 1;
 		}
 	}
@@ -198,33 +310,34 @@
 				<span>{data.tasks.length} tasks</span>
 			</div>
 			<div class="flex gap-2 mt-4">
-				<button class="btn btn-primary btn-sm" onclick={() => showCreateTask = !showCreateTask}>
+				<button class="btn btn-primary btn-sm" onclick={() => (showCreateTask = !showCreateTask)}>
 					Create New Task
 				</button>
-				<button class="btn btn-secondary btn-sm" onclick={() => showCreateStatus = !showCreateStatus}>
+				<button
+					class="btn btn-secondary btn-sm"
+					onclick={() => (showCreateStatus = !showCreateStatus)}
+				>
 					Add Status Column
 				</button>
-				<button class="btn btn-error btn-sm" onclick={confirmAndDelete}>
-					Delete Project
-				</button>
+				<button class="btn btn-error btn-sm" onclick={confirmAndDelete}> Delete Project </button>
 			</div>
 		</div>
 
 		<KanbanBoard
 			tasks={data.tasks}
-			taskStatuses={data.taskStatuses}
-			kanbanKey={kanbanKey}
-			showCreateTask={showCreateTask}
-			showCreateStatus={showCreateStatus}
-			newTaskName={newTaskName}
-			newTaskDescription={newTaskDescription}
-			newTaskStatusId={newTaskStatusId}
-			newStatusName={newStatusName}
-			creatingStatusId={creatingStatusId}
-			isCreatingTask={isCreatingTask}
-			editingTaskId={editingTaskId}
-			editTaskName={editTaskName}
-			editTaskDescription={editTaskDescription}
+			{taskStatuses}
+			{kanbanKey}
+			{showCreateTask}
+			{showCreateStatus}
+			{newTaskName}
+			{newTaskDescription}
+			{newTaskStatusId}
+			{newStatusName}
+			{creatingStatusId}
+			{isCreatingTask}
+			{editingTaskId}
+			{editTaskName}
+			{editTaskDescription}
 			onCreateTask={handleCreateTask}
 			onCreateStatus={handleCreateStatus}
 			onStartCreateTaskForStatus={startCreateTaskForStatus}
@@ -237,12 +350,16 @@
 			onDrop={drop}
 			onAllowDrop={allowDrop}
 			onDragEnter={dragEnter}
-			onNewStatusNameChange={(value) => newStatusName = value}
-			onNewTaskNameChange={(value) => newTaskName = value}
-			onNewTaskDescriptionChange={(value) => newTaskDescription = value}
-			onNewTaskStatusIdChange={(value) => newTaskStatusId = value}
-			onEditTaskNameChange={(value) => editTaskName = value}
-			onEditTaskDescriptionChange={(value) => editTaskDescription = value}
+			onStatusDragStart={statusDragStart}
+			onStatusDragEnd={statusDragEnd}
+			onStatusDragOver={statusDragOver}
+			onStatusDrop={statusDrop}
+			onNewStatusNameChange={(value) => (newStatusName = value)}
+			onNewTaskNameChange={(value) => (newTaskName = value)}
+			onNewTaskDescriptionChange={(value) => (newTaskDescription = value)}
+			onNewTaskStatusIdChange={(value) => (newTaskStatusId = value)}
+			onEditTaskNameChange={(value) => (editTaskName = value)}
+			onEditTaskDescriptionChange={(value) => (editTaskDescription = value)}
 			showInlineCreate={true}
 			showTaskActions={true}
 			taskLinkPrefix="/tasks"

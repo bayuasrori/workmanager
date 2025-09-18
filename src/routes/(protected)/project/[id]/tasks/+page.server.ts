@@ -1,7 +1,7 @@
 import { taskService } from '$lib/server/service/task';
 import { taskStatusService } from '$lib/server/service/taskStatus';
 import { projectService } from '$lib/server/service/project';
-import { redirect } from '@sveltejs/kit';
+import { json, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, url }) => {
@@ -29,13 +29,41 @@ export const actions: Actions = {
 	createStatus: async ({ request, params }) => {
 		const data = await request.formData();
 		const name = data.get('name') as string;
-		
+
 		if (!name || name.trim().length === 0) {
-			return { success: false, error: 'Status name is required' };
+			return json({ success: false, error: 'Status name is required' }, { status: 400 });
 		}
-		
-		await taskStatusService.createForProject(params.id, name.trim());
-		return { success: true };
+
+		const created = await taskStatusService.createForProject(params.id, name.trim());
+		const statusRecord = Array.isArray(created) ? created[0] : created;
+		return json({ success: true, status: statusRecord });
+	},
+	reorderStatuses: async ({ request, params }) => {
+		try {
+			const formData = await request.formData();
+			const raw = formData.get('orderedIds');
+			if (typeof raw !== 'string') {
+				return { success: false };
+			}
+			let orderedIds: string[] = [];
+			try {
+				const parsed = JSON.parse(raw);
+				if (Array.isArray(parsed)) {
+					orderedIds = parsed.map(String);
+				}
+			} catch (error) {
+				console.error('Failed to parse reordered status payload', error);
+			}
+			if (orderedIds.length === 0) {
+				return { success: false };
+			}
+			await taskStatusService.reorderForProject(params.id, orderedIds);
+			// const taskStatuses = await taskStatusService.getByProjectId(params.id);
+			return { success: true };
+		} catch (error) {
+			console.error('Failed to reorder statuses', error);
+			return { success: false };
+		}
 	},
 	deleteProject: async ({ params }) => {
 		await projectService.deleteCascade(params.id);

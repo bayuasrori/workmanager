@@ -1,42 +1,43 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	
+
 	let { data }: { data: PageData } = $props();
 </script>
 
 <!-- Navigation Header -->
 <nav class="navbar bg-base-100 shadow-lg">
 	<div class="navbar-start">
-		<a href="/" class="btn btn-ghost text-xl font-bold text-primary">WorkManager</a>
+		<a href="/" class="btn btn-ghost text-xl font-bold text-primary">Papanin</a>
 	</div>
 	<div class="navbar-end">
 		{#if data.isAuthenticated}
-			<a href="/dashboard" class="btn btn-primary">Go to Dashboard</a>
+			<a href="/dashboard" class="btn btn-primary">Buka Dashboard</a>
 		{:else}
-			<a href="/login" class="btn btn-primary">Get Started</a>
+			<a href="/login" class="btn btn-primary">Mulai Sekarang</a>
 		{/if}
 	</div>
 </nav>
 
 <!-- Hero Section -->
-<section class="hero min-h-screen bg-gradient-to-br from-primary/10 to-secondary/10">
+<section class="hero min-h-screen landing-hero">
+	<div class="hero-overlay landing-hero__overlay"></div>
 	<div class="hero-content text-center">
-		<div class="max-w-md">
+		<div class="max-w-md landing-hero__card">
 			<h1 class="text-5xl font-bold text-base-content mb-6">
-				Streamline Your
-				<span class="text-primary">Workflow</span>
+				Satu <span class="text-primary">Papan</span>, Banyak Ide.
 			</h1>
 			<p class="text-lg text-base-content/70 mb-8">
-				The ultimate work management platform for teams. Organize projects, track tasks, and collaborate seamlessly with your organization.
+				Kerjaan bisa ditunda, tapi nyatet ide jangan sampai kelewat. Papanin dulu aja, biar nggak
+				numpuk di kepala apalagi di chat grup.
 			</p>
 			<div class="flex flex-col sm:flex-row gap-4 justify-center">
 				{#if data.isAuthenticated}
-					<a href="/dashboard" class="btn btn-primary btn-lg">Go to Dashboard</a>
+					<a href="/dashboard" class="btn btn-primary btn-lg">Buka Dashboard</a>
 				{:else}
-					<a href="/login" class="btn btn-primary btn-lg">Start Free Trial</a>
+					<a href="/login" class="btn btn-primary btn-lg">Coba Gratis Sekarang</a>
 				{/if}
-				<a href="/public-board/create" class="btn btn-accent btn-lg">Create Public Board</a>
-				<a href="#features" class="btn btn-outline btn-lg">Learn More</a>
+				<a href="/public-board/create" class="btn btn-accent btn-lg">Buat Papan Publik</a>
+				<a href="#features" class="btn btn-warning btn-lg">Pelajari Lebih Lanjut</a>
 			</div>
 		</div>
 	</div>
@@ -46,53 +47,58 @@
 <section id="features" class="py-20 bg-base-100">
 	<div class="container mx-auto px-4">
 		<div class="text-center mb-16">
-			<h2 class="text-4xl font-bold text-base-content mb-4">Powerful Features</h2>
+			<h2 class="text-4xl font-bold text-base-content mb-4">Fitur Unggulan Kami</h2>
 			<p class="text-lg text-base-content/70 max-w-2xl mx-auto">
-				Everything you need to manage your work efficiently and keep your team organized.
+				Semua yang kamu perlukan untuk mengelola pekerjaan dengan rapi dan menjaga tim tetap
+				teratur.
 			</p>
 		</div>
-		
+
 		<div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
 			<!-- Feature 1 -->
 			<div class="card bg-base-200 shadow-lg">
 				<div class="card-body text-center">
 					<div class="text-4xl mb-4">👥</div>
-					<h3 class="card-title justify-center mb-2">Team Management</h3>
+					<h3 class="card-title justify-center mb-2">Kelola Tim</h3>
 					<p class="text-base-content/70">
-						Create and manage organizations with role-based access control. Invite team members and assign permissions.
+						Buat dan kelola organisasi dengan pengaturan peran yang jelas. Undang anggota tim dan
+						atur hak aksesnya.
 					</p>
 				</div>
 			</div>
-			
+
 			<!-- Feature 2 -->
 			<div class="card bg-base-200 shadow-lg">
 				<div class="card-body text-center">
 					<div class="text-4xl mb-4">📋</div>
-					<h3 class="card-title justify-center mb-2">Project Tracking</h3>
+					<h3 class="card-title justify-center mb-2">Pantau Proyek</h3>
 					<p class="text-base-content/70">
-						Organize your work into projects and track progress with customizable task statuses and deadlines.
+						Susun pekerjaan dalam proyek dan pantau progres dengan status tugas serta tenggat yang
+						bisa kamu atur sendiri.
 					</p>
 				</div>
 			</div>
-			
+
 			<!-- Feature 3 -->
 			<div class="card bg-base-200 shadow-lg">
 				<div class="card-body text-center">
 					<div class="text-4xl mb-4">✅</div>
-					<h3 class="card-title justify-center mb-2">Task Management</h3>
+					<h3 class="card-title justify-center mb-2">Kelola Tugas</h3>
 					<p class="text-base-content/70">
-						Create, assign, and track tasks with comments, status updates, and real-time collaboration.
+						Buat, bagi, dan pantau tugas lengkap dengan komentar, pembaruan status, dan kolaborasi
+						langsung.
 					</p>
 				</div>
 			</div>
-			
+
 			<!-- Feature 4 -->
 			<div class="card bg-base-200 shadow-lg">
 				<div class="card-body text-center">
 					<div class="text-4xl mb-4">🌐</div>
-					<h3 class="card-title justify-center mb-2">Public Boards</h3>
+					<h3 class="card-title justify-center mb-2">Papan Publik</h3>
 					<p class="text-base-content/70">
-						Create public boards for free to share with anyone. Perfect for open source projects and community collaboration.
+						Buat papan publik gratis untuk dibagikan ke siapa saja. Cocok untuk proyek terbuka dan
+						kolaborasi komunitas.
 					</p>
 				</div>
 			</div>
@@ -104,38 +110,38 @@
 <section class="py-20 bg-base-200">
 	<div class="container mx-auto px-4">
 		<div class="text-center mb-16">
-			<h2 class="text-4xl font-bold text-base-content mb-4">Built with Modern Technology</h2>
+			<h2 class="text-4xl font-bold text-base-content mb-4">Didukung Teknologi Terkini</h2>
 			<p class="text-lg text-base-content/70 max-w-2xl mx-auto">
-				Powered by cutting-edge technologies for performance, reliability, and developer experience.
+				Dibangun dengan teknologi modern agar aplikasi tetap cepat, stabil, dan nyaman digunakan.
 			</p>
 		</div>
-		
+
 		<div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
 			<div class="card bg-base-100 shadow-lg">
 				<div class="card-body text-center">
 					<div class="text-2xl font-bold text-primary mb-2">SvelteKit</div>
-					<p class="text-sm text-base-content/70">Modern web framework</p>
+					<p class="text-sm text-base-content/70">Framework web modern</p>
 				</div>
 			</div>
-			
+
 			<div class="card bg-base-100 shadow-lg">
 				<div class="card-body text-center">
 					<div class="text-2xl font-bold text-primary mb-2">Drizzle ORM</div>
-					<p class="text-sm text-base-content/70">Type-safe database</p>
+					<p class="text-sm text-base-content/70">Basis data yang aman dan konsisten</p>
 				</div>
 			</div>
-			
+
 			<div class="card bg-base-100 shadow-lg">
 				<div class="card-body text-center">
 					<div class="text-2xl font-bold text-primary mb-2">Tailwind CSS</div>
-					<p class="text-sm text-base-content/70">Utility-first styling</p>
+					<p class="text-sm text-base-content/70">Gaya antarmuka yang fleksibel</p>
 				</div>
 			</div>
-			
+
 			<div class="card bg-base-100 shadow-lg">
 				<div class="card-body text-center">
 					<div class="text-2xl font-bold text-primary mb-2">Oslo Auth</div>
-					<p class="text-sm text-base-content/70">Secure authentication</p>
+					<p class="text-sm text-base-content/70">Autentikasi yang aman</p>
 				</div>
 			</div>
 		</div>
@@ -145,17 +151,17 @@
 <!-- CTA Section -->
 <section class="py-20 bg-primary text-primary-content">
 	<div class="container mx-auto px-4 text-center">
-		<h2 class="text-4xl font-bold mb-4">Ready to Get Started?</h2>
+		<h2 class="text-4xl font-bold mb-4">Siap Mulai Sekarang?</h2>
 		<p class="text-xl mb-8 opacity-90">
-			Join thousands of teams already using WorkManager to streamline their workflow.
+			Bergabunglah dengan banyak tim yang sudah memakai Papanin untuk merapikan pekerjaan mereka.
 		</p>
 		<div class="flex flex-col sm:flex-row gap-4 justify-center">
 			{#if data.isAuthenticated}
-				<a href="/dashboard" class="btn btn-secondary btn-lg">Go to Dashboard</a>
+				<a href="/dashboard" class="btn btn-secondary btn-lg">Buka Dashboard</a>
 			{:else}
-				<a href="/login" class="btn btn-secondary btn-lg">Start Your Free Trial</a>
+				<a href="/login" class="btn btn-secondary btn-lg">Mulai Coba Gratis</a>
 			{/if}
-			<a href="/public-board/create" class="btn btn-accent btn-lg">Create Public Board</a>
+			<a href="/public-board/create" class="btn btn-accent btn-lg">Buat Papan Publik</a>
 		</div>
 	</div>
 </section>
@@ -163,10 +169,53 @@
 <!-- Footer -->
 <footer class="footer footer-center p-10 bg-base-200 text-base-content">
 	<div>
-		<p class="font-bold text-lg">WorkManager</p>
-		<p class="text-base-content/70">Streamline your workflow, organize your team.</p>
+		<p class="font-bold text-lg">Papanin</p>
+		<p class="text-base-content/70">Permudah pekerjaanmu, rapikan kerja tim.</p>
 		<p class="text-sm text-base-content/50 mt-4">
-			Built with ❤️ using SvelteKit, Drizzle ORM, and Tailwind CSS
+			Dibuat dengan ❤️ menggunakan SvelteKit, Drizzle ORM, dan Tailwind CSS
 		</p>
 	</div>
 </footer>
+
+<style>
+	.landing-hero {
+		position: relative;
+		background-image: url('/chalkboard-notes-bg.svg');
+		background-size: cover;
+		background-position: center;
+		background-repeat: no-repeat;
+	}
+
+	.landing-hero__overlay {
+		background: linear-gradient(135deg, rgba(15, 23, 42, 0.65), rgba(30, 64, 175, 0.35));
+		backdrop-filter: blur(1px);
+	}
+
+	.landing-hero__card {
+		background: rgba(255, 255, 255, 0.86);
+		backdrop-filter: blur(6px);
+		border-radius: 1.5rem;
+		padding: 2.5rem 2rem;
+		box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25);
+	}
+
+	:global(.dark) .landing-hero__card {
+		background: rgba(15, 23, 42, 0.85);
+		box-shadow: 0 25px 60px rgba(2, 6, 23, 0.45);
+	}
+
+	:global(.dark) .landing-hero {
+		background-color: #020617;
+		background-blend-mode: lighten;
+	}
+
+	:global(.dark) .landing-hero__overlay {
+		background: linear-gradient(135deg, rgba(2, 6, 23, 0.82), rgba(30, 41, 59, 0.6));
+	}
+
+	@media (max-width: 768px) {
+		.landing-hero {
+			background-position: center top;
+		}
+	}
+</style>

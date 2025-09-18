@@ -6,6 +6,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.user) {
 		return { user: locals.user, isAuthenticated: true };
 	}
-	
+
 	return { user: null, isAuthenticated: false };
 };

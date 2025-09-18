@@ -5,9 +5,9 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ locals }) => {
 	// Public board creation doesn't require authentication
 	// But if user is logged in, we can associate the board with them
-	return { 
+	return {
 		user: locals.user || null,
-		isAuthenticated: !!locals.user 
+		isAuthenticated: !!locals.user
 	};
 };
 
@@ -37,8 +37,6 @@ export const actions: Actions = {
 			return fail(500, { message: 'Failed to create board. Please try again.' });
 		}
 
-		console.log('Created board:', board);
-		
 		if (!board || !board.slug) {
 			return fail(500, { message: 'Board creation failed - no slug returned' });
 		}

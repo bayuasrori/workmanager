@@ -12,7 +12,10 @@ export const organizationService = {
 	},
 	create: async (item: Omit<Organization, 'id'>) => {
 		const id = crypto.randomUUID();
-		const inserted = await db.insert(organization).values({ ...item, id }).returning();
+		const inserted = await db
+			.insert(organization)
+			.values({ ...item, id })
+			.returning();
 		return inserted[0];
 	},
 	update: async (id: string, item: Partial<Omit<Organization, 'id'>>) => {

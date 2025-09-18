@@ -17,12 +17,7 @@
 			<label class="label" for="password">
 				<span class="label-text">Password</span>
 			</label>
-			<input
-				type="text"
-				id="password"
-				name="password"
-				class="input input-bordered w-full"
-			/>
+			<input type="text" id="password" name="password" class="input input-bordered w-full" />
 		</div>
 		<button type="submit" class="btn btn-primary">Create</button>
 	</form>

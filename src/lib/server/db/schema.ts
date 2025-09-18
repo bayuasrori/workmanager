@@ -44,7 +44,7 @@ export const projectMember = sqliteTable('project_member', {
 export const task_status = sqliteTable('task_status', {
 	id: text('id').primaryKey(),
 	name: text('name').notNull(),
-	order: integer('order'),
+	order: integer('order').notNull().default(0),
 	projectId: text('project_id').references(() => project.id)
 });
 
@@ -66,7 +66,6 @@ export const taskComment = sqliteTable('task_comment', {
 	userId: text('user_id').references(() => user.id),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 });
-
 
 export const projectRelations = relations(project, ({ one, many }) => ({
 	organization: one(organization, {
@@ -100,7 +99,6 @@ export const taskStatusRelations = relations(task_status, ({ one, many }) => ({
 	tasks: many(task)
 }));
 
-
 export type User = typeof user.$inferSelect;
 export type Session = typeof session.$inferSelect;
 export type Organization = typeof organization.$inferSelect;
@@ -109,3 +107,4 @@ export type Project = typeof project.$inferSelect;
 export type ProjectMember = typeof projectMember.$inferSelect;
 export type Task = typeof task.$inferSelect;
 export type TaskStatus = typeof task_status.$inferSelect;
+export type TaskComment = typeof taskComment.$inferSelect;

@@ -1,7 +1,6 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
-@plugin "daisyui"{
-    themes: emerald --default;
-  }
-
+@plugin "daisyui" {
+	themes: emerald --default;
+}

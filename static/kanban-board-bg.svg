@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice">
+	<defs>
+		<linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+			<stop offset="0%" stop-color="#f4f6fb" />
+			<stop offset="50%" stop-color="#e2e8f8" />
+			<stop offset="100%" stop-color="#f7f5ff" />
+		</linearGradient>
+		<pattern id="grid" width="120" height="120" patternUnits="userSpaceOnUse">
+			<rect width="120" height="120" fill="none" stroke="#d0d8ee" stroke-width="1" opacity="0.35" />
+			<path d="M60 0v120M0 60h120" stroke="#c2cae6" stroke-dasharray="4 6" stroke-width="1" opacity="0.4" />
+		</pattern>
+	</defs>
+	<rect width="800" height="600" fill="url(#bg-gradient)" />
+	<rect width="800" height="600" fill="url(#grid)" />
+	<g opacity="0.18">
+		<circle cx="120" cy="520" r="100" fill="#aebff6" />
+		<circle cx="680" cy="120" r="90" fill="#b6d0ff" />
+		<circle cx="640" cy="540" r="120" fill="#d0c9ff" />
+		<circle cx="220" cy="160" r="80" fill="#adc6ff" />
+	</g>
+	<g opacity="0.14">
+		<path d="M140 340h120v40H140z" fill="#6a93ff" />
+		<path d="M320 120h140v28H320z" fill="#8ab3ff" />
+		<path d="M520 400h150v34H520z" fill="#7f9aff" />
+	</g>
+</svg>

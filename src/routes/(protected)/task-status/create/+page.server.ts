@@ -6,7 +6,7 @@ export const actions: Actions = {
 	default: async ({ request }) => {
 		const data = await request.formData();
 		const name = data.get('name') as string;
-		await taskStatusService.create({ name });
+		await taskStatusService.create({ name, projectId: null, order: 0 });
 		throw redirect(303, '/task-status');
 	}
 };

@@ -1,10 +1,10 @@
 {
-	"name": "workmanager",
+	"name": "papanin",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"dev": "vite dev",
+		"dev": "vite dev -- --host 0.0.0.0",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",

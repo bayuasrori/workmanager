@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "name": "workmanager",
+      "name": "papanin",
       "dependencies": {
         "@libsql/client": "^0.14.0",
         "@node-rs/argon2": "^2.0.2",

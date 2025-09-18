@@ -3,12 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const user = locals.user;
-	let projects;
-	if (user?.id) {
-		projects = await projectService.getByMemberUserId(user.id);
-	} else {
-		projects = [];
-	}
+	const projects = user?.id ? await projectService.getByMemberUserId(user.id) : [];
 	return { projects };
 };
 

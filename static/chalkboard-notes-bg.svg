@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+	<defs>
+		<linearGradient id="chalkboard-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+			<stop offset="0%" stop-color="#1f2a33" />
+			<stop offset="100%" stop-color="#101820" />
+		</linearGradient>
+		<filter id="noise" x="-20%" y="-20%" width="140%" height="140%">
+			<feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch" />
+			<feColorMatrix type="saturate" values="0" />
+			<feComponentTransfer>
+				<feFuncA type="linear" slope="0.12" />
+			</feComponentTransfer>
+		</filter>
+	</defs>
+	<rect width="1600" height="900" fill="url(#chalkboard-gradient)" />
+	<rect width="1600" height="900" fill="rgba(255,255,255,0.02)" filter="url(#noise)" />
+	<g opacity="0.08" stroke="#b8c6d0" stroke-width="2">
+		<path d="M120 140h1360" />
+		<path d="M120 280h1360" />
+		<path d="M120 420h1360" />
+		<path d="M120 560h1360" />
+		<path d="M120 700h1360" />
+	</g>
+	<g opacity="0.08" stroke="#b8c6d0" stroke-width="2">
+		<path d="M240 60v780" />
+		<path d="M520 60v780" />
+		<path d="M800 60v780" />
+		<path d="M1080 60v780" />
+		<path d="M1360 60v780" />
+	</g>
+	<g opacity="0.9">
+		<polygon points="260,200 430,180 445,330 275,340" fill="#ffd166" stroke="#f4b41a" stroke-width="6" />
+		<polygon points="840,160 1010,140 1020,300 855,315" fill="#ffd6a5" stroke="#f9a03f" stroke-width="6" />
+		<polygon points="520,520 690,500 705,660 535,670" fill="#caffbf" stroke="#8ac926" stroke-width="6" />
+		<polygon points="1080,460 1245,445 1260,610 1095,620" fill="#a0c4ff" stroke="#5c7aea" stroke-width="6" />
+		<polygon points="360,630 520,620 530,760 375,770" fill="#ffadad" stroke="#ff6b6b" stroke-width="6" />
+		<polygon points="980,670 1140,655 1155,795 995,805" fill="#ffd166" stroke="#f4b41a" stroke-width="6" />
+	</g>
+	<g opacity="0.2" stroke="#ffffff" stroke-linecap="round" stroke-width="3">
+		<path d="M280 250c40-30 90-20 110 25" />
+		<path d="M875 230c36-28 82-18 95 24" />
+		<path d="M1120 520c40-30 90-20 110 25" />
+		<path d="M580 600c42-34 96-22 120 28" />
+	</g>
+	<g opacity="0.1" fill="#ffffff">
+		<circle cx="220" cy="160" r="6" />
+		<circle cx="1120" cy="180" r="8" />
+		<circle cx="760" cy="640" r="5" />
+		<circle cx="1360" cy="540" r="7" />
+		<circle cx="420" cy="460" r="5" />
+		<circle cx="980" cy="360" r="6" />
+	</g>
+	<rect x="80" y="40" width="1440" height="820" fill="none" stroke="#3d4a52" stroke-width="24" rx="22" />
+	<rect x="110" y="70" width="1380" height="760" fill="none" stroke="#111a20" stroke-width="6" rx="12" />
+</svg>
