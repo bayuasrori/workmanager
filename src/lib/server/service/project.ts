@@ -24,13 +24,21 @@ export const projectService = {
 			.innerJoin(projectMember, eq(projectMember.projectId, project.id))
 			.where(and(eq(projectMember.userId, userId)));
 	},
-	create: async (item: Omit<Project, 'id'>) => {
+	create: async (item: Omit<Project, 'id'>, creatorId?: string) => {
 		const id = crypto.randomUUID();
-		const inserted = await db
-			.insert(project)
-			.values({ ...item, id })
-			.returning();
-		return inserted[0];
+		return await db.transaction(async (tx) => {
+			const [projectRecord] = await tx
+				.insert(project)
+				.values({ ...item, id })
+				.returning();
+			if (creatorId) {
+				await tx
+					.insert(projectMember)
+					.values({ projectId: projectRecord.id, userId: creatorId })
+					.onConflictDoNothing();
+			}
+			return projectRecord;
+		});
 	},
 	update: async (id: string, item: Partial<Omit<Project, 'id'>>) => {
 		return await db.update(project).set(item).where(eq(project.id, id));

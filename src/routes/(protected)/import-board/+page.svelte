@@ -1,8 +1,9 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	let { data }: { data: PageData } = $props();
-	let boardUrl = $state('');
-	let organizationId = $state('');
+
+	export let data: PageData;
+	let boardUrl = '';
+	let organizationId = '';
 </script>
 
 <div class="max-w-2xl mx-auto p-6">

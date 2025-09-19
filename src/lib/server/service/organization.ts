@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { organization, type Organization } from '../db/schema';
+import { organization, organizationMember, type Organization } from '../db/schema';
 import { eq } from 'drizzle-orm';
 
 export const organizationService = {
@@ -9,6 +9,17 @@ export const organizationService = {
 	},
 	getAll: async () => {
 		return await db.select().from(organization);
+	},
+	getByMemberUserId: async (userId: string) => {
+		return await db
+			.select({
+				id: organization.id,
+				name: organization.name,
+				ownerId: organization.ownerId
+			})
+			.from(organization)
+			.innerJoin(organizationMember, eq(organizationMember.organizationId, organization.id))
+			.where(eq(organizationMember.userId, userId));
 	},
 	create: async (item: Omit<Organization, 'id'>) => {
 		const id = crypto.randomUUID();

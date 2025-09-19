@@ -279,6 +279,78 @@
 			cancelEditTask();
 		}
 	}
+
+	async function handleDeleteStatus(statusId: string) {
+		const status = taskStatuses.find((s) => s.id === statusId);
+		if (!status) return;
+		const tasksInStatus = board.tasks.filter((task) => task.statusId === statusId);
+		const taskCount = tasksInStatus.length;
+		const baseMessage = `Delete status "${status.name}"`;
+		const confirmMessage =
+			taskCount > 0
+				? `${baseMessage} and ${taskCount} task${taskCount === 1 ? '' : 's'}? This cannot be undone.`
+				: `${baseMessage}? This cannot be undone.`;
+		if (!confirm(confirmMessage)) return;
+
+		const previousStatuses = taskStatuses;
+		const previousTasks = board.tasks;
+		const previousBoard = board;
+		const previousCreatingStatusId = creatingStatusId;
+		const previousNewTaskStatusId = newTaskStatusId;
+		const previousEditingState = {
+			id: editingTaskId,
+			name: editTaskName,
+			description: editTaskDescription
+		};
+
+		const updatedStatuses = previousStatuses.filter((s) => s.id !== statusId);
+		const updatedTasks = previousTasks.filter((task) => task.statusId !== statusId);
+
+		taskStatuses = updatedStatuses;
+		board = { ...board, taskStatuses: updatedStatuses, tasks: updatedTasks };
+		if (creatingStatusId === statusId) {
+			creatingStatusId = '';
+		}
+		if (newTaskStatusId === statusId) {
+			newTaskStatusId = '';
+		}
+		if (editingTaskId && !updatedTasks.some((task) => task.id === editingTaskId)) {
+			cancelEditTask();
+		}
+		kanbanKey += 1;
+
+		const formData = new FormData();
+		formData.append('statusId', statusId);
+		const response = await fetch('?/deleteStatus', {
+			method: 'POST',
+			body: formData
+		});
+
+		if (response.ok) {
+			try {
+				const slug = board.slug;
+				const refreshed = await fetch(`/public-board/${slug}/tasks`);
+				if (refreshed.ok) {
+					const result: Board = await refreshed.json();
+					board = result;
+					taskStatuses = result.taskStatuses;
+					kanbanKey += 1;
+				}
+			} catch (error) {
+				console.error('Failed to refresh board after deleting status', error);
+			}
+			return;
+		}
+
+		taskStatuses = previousStatuses;
+		board = { ...previousBoard, taskStatuses: previousStatuses, tasks: previousTasks };
+		creatingStatusId = previousCreatingStatusId;
+		newTaskStatusId = previousNewTaskStatusId;
+		editingTaskId = previousEditingState.id;
+		editTaskName = previousEditingState.name;
+		editTaskDescription = previousEditingState.description;
+		kanbanKey += 1;
+	}
 </script>
 
 <svelte:head>
@@ -426,6 +498,7 @@
 					kanbanKey += 1;
 				}
 			}}
+			onDeleteStatus={handleDeleteStatus}
 			onDragStart={dragStart}
 			onDrop={drop}
 			onAllowDrop={allowDrop}
@@ -442,6 +515,7 @@
 			onEditTaskDescriptionChange={(value) => (editTaskDescription = value)}
 			showInlineCreate={true}
 			showTaskActions={true}
+			allowStatusDelete={true}
 			taskLinkPrefix=""
 		/>
 

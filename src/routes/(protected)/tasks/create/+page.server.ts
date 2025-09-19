@@ -14,7 +14,7 @@ export const load: PageServerLoad = async ({ url }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request }) => {
+	default: async ({ request, locals }) => {
 		const data = await request.formData();
 		const name = data.get('name') as string;
 		const projectIdField = data.get('projectId');
@@ -34,7 +34,7 @@ export const actions: Actions = {
 			statusId,
 			startDate: null,
 			endDate: null
-		});
+		}, { actorId: locals.user?.id });
 		throw redirect(303, '/tasks');
 	}
 };

@@ -229,6 +229,12 @@ export const publicBoardService = {
 		return await db.delete(task).where(eq(task.id, taskId));
 	},
 
+	deleteTasksByStatus: async (projectId: string, statusId: string) => {
+		return await db
+			.delete(task)
+			.where(and(eq(task.projectId, projectId), eq(task.statusId, statusId)));
+	},
+
 	getTasksByProjectId: async (projectId: string) => {
 		return await db.query.task.findMany({
 			where: eq(task.projectId, projectId),

@@ -22,18 +22,18 @@ export const actions: Actions = {
 
 		if (!validateUsername(username)) {
 			return fail(400, {
-				message: 'Invalid username (min 3, max 31 characters, alphanumeric only)'
+				message: 'Nama pengguna tidak valid (minimal 3, maksimal 31 karakter, hanya huruf atau angka).'
 			});
 		}
 		if (!validatePassword(password)) {
-			return fail(400, { message: 'Invalid password (min 6, max 255 characters)' });
+			return fail(400, { message: 'Kata sandi tidak valid (minimal 6, maksimal 255 karakter).' });
 		}
 
 		const results = await db.select().from(table.user).where(eq(table.user.username, username));
 
 		const existingUser = results.at(0);
 		if (!existingUser) {
-			return fail(400, { message: 'Incorrect username or password' });
+			return fail(400, { message: 'Nama pengguna atau kata sandi salah.' });
 		}
 
 		const validPassword = await verify(existingUser.passwordHash, password, {
@@ -43,7 +43,7 @@ export const actions: Actions = {
 			parallelism: 1
 		});
 		if (!validPassword) {
-			return fail(400, { message: 'Incorrect username or password' });
+			return fail(400, { message: 'Nama pengguna atau kata sandi salah.' });
 		}
 
 		const sessionToken = auth.generateSessionToken();
@@ -55,13 +55,23 @@ export const actions: Actions = {
 	register: async (event) => {
 		const formData = await event.request.formData();
 		const username = formData.get('username');
+		const email = formData.get('email');
 		const password = formData.get('password');
 
 		if (!validateUsername(username)) {
-			return fail(400, { message: 'Invalid username' });
+			return fail(400, { message: 'Nama pengguna tidak valid.' });
+		}
+		if (!validateEmail(email)) {
+			return fail(400, { message: 'Email tidak valid.' });
 		}
 		if (!validatePassword(password)) {
-			return fail(400, { message: 'Invalid password' });
+			return fail(400, { message: 'Kata sandi tidak valid.' });
+		}
+
+		const normalizedEmail = (email as string).trim().toLowerCase();
+		const existingEmail = await db.select().from(table.user).where(eq(table.user.email, normalizedEmail));
+		if (existingEmail.length > 0) {
+			return fail(400, { message: 'Email sudah terdaftar.' });
 		}
 
 		const userId = generateUserId();
@@ -74,13 +84,13 @@ export const actions: Actions = {
 		});
 
 		try {
-			await db.insert(table.user).values({ id: userId, username, passwordHash });
+			await db.insert(table.user).values({ id: userId, username, email: normalizedEmail, passwordHash });
 
 			const sessionToken = auth.generateSessionToken();
 			const session = await auth.createSession(sessionToken, userId);
 			auth.setSessionTokenCookie(event, sessionToken, session.expiresAt);
 		} catch {
-			return fail(500, { message: 'An error has occurred' });
+			return fail(500, { message: 'Terjadi kesalahan.' });
 		}
 		return redirect(302, '/dashboard');
 	}
@@ -104,4 +114,15 @@ function validateUsername(username: unknown): username is string {
 
 function validatePassword(password: unknown): password is string {
 	return typeof password === 'string' && password.length >= 6 && password.length <= 255;
+}
+
+function validateEmail(email: unknown): email is string {
+	if (typeof email !== 'string') {
+		return false;
+	}
+	const normalized = email.trim();
+	if (!normalized) {
+		return false;
+	}
+	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
 }

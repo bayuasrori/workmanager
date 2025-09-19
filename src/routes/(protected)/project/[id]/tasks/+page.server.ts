@@ -19,14 +19,14 @@ export const load: PageServerLoad = async ({ params, url }) => {
 };
 
 export const actions: Actions = {
-	updateTaskStatus: async ({ request }) => {
+	updateTaskStatus: async ({ request, locals }) => {
 		const data = await request.formData();
 		const taskId = data.get('taskId') as string;
 		const newStatusId = data.get('newStatusId') as string;
-		await taskService.update(taskId, { statusId: newStatusId });
+		await taskService.update(taskId, { statusId: newStatusId }, { actorId: locals.user?.id });
 		return { success: true };
 	},
-	createStatus: async ({ request, params }) => {
+	createStatus: async ({ request, params, locals }) => {
 		const data = await request.formData();
 		const name = data.get('name') as string;
 
@@ -34,11 +34,13 @@ export const actions: Actions = {
 			return json({ success: false, error: 'Status name is required' }, { status: 400 });
 		}
 
-		const created = await taskStatusService.createForProject(params.id, name.trim());
+		const created = await taskStatusService.createForProject(params.id, name.trim(), {
+			actorId: locals.user?.id
+		});
 		const statusRecord = Array.isArray(created) ? created[0] : created;
 		return json({ success: true, status: statusRecord });
 	},
-	reorderStatuses: async ({ request, params }) => {
+	reorderStatuses: async ({ request, params, locals }) => {
 		try {
 			const formData = await request.formData();
 			const raw = formData.get('orderedIds');
@@ -57,7 +59,9 @@ export const actions: Actions = {
 			if (orderedIds.length === 0) {
 				return { success: false };
 			}
-			await taskStatusService.reorderForProject(params.id, orderedIds);
+			await taskStatusService.reorderForProject(params.id, orderedIds, {
+				actorId: locals.user?.id
+			});
 			// const taskStatuses = await taskStatusService.getByProjectId(params.id);
 			return { success: true };
 		} catch (error) {

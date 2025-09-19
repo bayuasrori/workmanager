@@ -5,6 +5,7 @@ export const user = sqliteTable('user', {
 	id: text('id').primaryKey(),
 	age: integer('age'),
 	username: text('username').notNull().unique(),
+	email: text('email').notNull().unique(),
 	passwordHash: text('password_hash').notNull()
 });
 
@@ -67,6 +68,21 @@ export const taskComment = sqliteTable('task_comment', {
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 });
 
+export const activity = sqliteTable('activity', {
+	id: text('id').primaryKey(),
+	projectId: text('project_id')
+		.notNull()
+		.references(() => project.id),
+	taskId: text('task_id').references(() => task.id),
+	userId: text('user_id')
+		.notNull()
+		.references(() => user.id),
+	type: text('type').notNull(),
+	description: text('description'),
+	metadata: text('metadata'),
+	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
+});
+
 export const projectRelations = relations(project, ({ one, many }) => ({
 	organization: one(organization, {
 		fields: [project.organizationId],
@@ -108,3 +124,4 @@ export type ProjectMember = typeof projectMember.$inferSelect;
 export type Task = typeof task.$inferSelect;
 export type TaskStatus = typeof task_status.$inferSelect;
 export type TaskComment = typeof taskComment.$inferSelect;
+export type Activity = typeof activity.$inferSelect;

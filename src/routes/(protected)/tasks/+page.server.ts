@@ -7,10 +7,10 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	delete: async ({ url }) => {
+	delete: async ({ url, locals }) => {
 		const id = url.searchParams.get('id');
 		if (!id) return { success: false };
-		await taskService.delete(id);
+		await taskService.delete(id, { actorId: locals.user?.id });
 		return { success: true };
 	}
 };

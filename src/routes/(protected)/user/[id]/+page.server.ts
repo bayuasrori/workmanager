@@ -11,10 +11,23 @@ export const load: PageServerLoad = async ({ params }) => {
 export const actions: Actions = {
 	default: async ({ request, params }) => {
 		const data = await request.formData();
-		const username = data.get('username') as string;
-		let age: number | undefined = parseInt(data.get('age') as string);
+		const usernameEntry = data.get('username');
+		const username = typeof usernameEntry === 'string' ? usernameEntry.trim() : '';
+		const ageEntry = data.get('age');
+		const ageString = typeof ageEntry === 'string' ? ageEntry : '';
+		let age: number | undefined = parseInt(ageString);
 		if (isNaN(age)) {
 			age = undefined;
+		}
+		const emailRaw = data.get('email');
+		const emailInput = typeof emailRaw === 'string' ? emailRaw.trim() : '';
+		const email = emailInput.toLowerCase();
+		const values = { username, email: emailInput, age: ageString };
+		if (!email) {
+			return fail(400, { message: 'Email diperlukan.', values });
+		}
+		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+			return fail(400, { message: 'Format email tidak valid.', values });
 		}
 		const oldPassword = data.get('oldPassword') as string;
 		const newPassword = data.get('newPassword') as string;
@@ -29,18 +42,26 @@ export const actions: Actions = {
 
 		if (newPassword) {
 			if (!oldPassword) {
-				return fail(400, { message: 'Old password is required to change password.' });
+				return fail(400, { message: 'Old password is required to change password.', values });
 			}
 
 			const validOldPassword = await verify(passwordHash, oldPassword);
 			if (!validOldPassword) {
-				return fail(400, { message: 'Old password does not match.' });
+				return fail(400, { message: 'Old password does not match.', values });
 			}
 
 			passwordHash = await hash(newPassword);
 		}
 
-		await userService.update(params.id, { username, age, passwordHash });
+		const normalizedAge = typeof age === 'number' ? age : null;
+		try {
+			await userService.update(params.id, { username, age: normalizedAge, email, passwordHash });
+		} catch (error) {
+			return fail(400, {
+				message: 'Gagal memperbarui pengguna. Pastikan nama pengguna dan email belum digunakan.',
+				values
+			});
+		}
 		throw redirect(303, '/user');
 	}
 };

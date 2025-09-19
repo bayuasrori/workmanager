@@ -66,11 +66,14 @@ export const actions: Actions = {
 		// Create statuses in order and keep a map
 		const statusMap = new Map<string, string>();
 		for (const status of board.taskStatuses) {
-			const insertedStatus = await taskStatusService.create({
-				name: status.name,
-				order: status.order ?? 0,
-				projectId: newProjectId
-			});
+			const insertedStatus = await taskStatusService.create(
+				{
+					name: status.name,
+					order: status.order ?? 0,
+					projectId: newProjectId
+				},
+				{ actorId: locals.user?.id }
+			);
 			statusMap.set(status.id, insertedStatus.id);
 		}
 
@@ -80,15 +83,18 @@ export const actions: Actions = {
 			const mappedStatusId =
 				(task.statusId ? statusMap.get(task.statusId) : undefined) ?? fallbackStatusId;
 			if (!mappedStatusId) continue;
-			await taskService.create({
-				name: task.name,
-				description: task.description ?? null,
-				projectId: newProjectId,
-				statusId: mappedStatusId,
-				assigneeId: null,
-				startDate: null,
-				endDate: null
-			});
+			await taskService.create(
+				{
+					name: task.name,
+					description: task.description ?? null,
+					projectId: newProjectId,
+					statusId: mappedStatusId,
+					assigneeId: null,
+					startDate: null,
+					endDate: null
+				},
+				{ actorId: locals.user?.id }
+			);
 		}
 
 		throw redirect(303, `/project/${newProjectId}/tasks`);

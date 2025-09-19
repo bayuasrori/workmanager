@@ -8,10 +8,10 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	deleteStatus: async ({ request }) => {
+	deleteStatus: async ({ request, locals }) => {
 		const data = await request.formData();
 		const id = data.get('id') as string;
-		await taskStatusService.delete(id);
+		await taskStatusService.delete(id, { actorId: locals.user?.id });
 		throw redirect(303, '/task-status');
 	}
 };

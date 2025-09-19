@@ -7,3 +7,4 @@ export * from './task';
 export * from './taskStatus';
 export * from './taskComment';
 export * from './publicBoard';
+export * from './activity';

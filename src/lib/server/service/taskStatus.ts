@@ -1,6 +1,11 @@
 import { db } from '../db';
 import { task, task_status, type TaskStatus } from '../db/schema';
 import { eq, sql } from 'drizzle-orm';
+import { activityService } from './activity';
+
+type TaskStatusActivityOptions = {
+	actorId?: string | null;
+};
 
 export const taskStatusService = {
 	getById: async (id: string) => {
@@ -17,15 +22,25 @@ export const taskStatusService = {
 			.where(eq(task_status.projectId, projectId))
 			.orderBy(task_status.order);
 	},
-	create: async (item: Omit<TaskStatus, 'id'>) => {
+	create: async (item: Omit<TaskStatus, 'id'>, options?: TaskStatusActivityOptions) => {
 		const id = crypto.randomUUID();
 		const inserted = await db
 			.insert(task_status)
 			.values({ ...item, id })
 			.returning();
+		const record = inserted[0];
+		if (record && options?.actorId && record.projectId) {
+			await activityService.record({
+				projectId: record.projectId,
+				userId: options.actorId,
+				type: 'TASK_STATUS_CREATED',
+				description: `Status "${record.name}" dibuat`,
+				metadata: { statusId: record.id }
+			});
+		}
 		return inserted[0];
 	},
-	createForProject: async (projectId: string, name: string) => {
+	createForProject: async (projectId: string, name: string, options?: TaskStatusActivityOptions) => {
 		const id = crypto.randomUUID();
 
 		// Get the highest order number for this project
@@ -38,7 +53,7 @@ export const taskStatusService = {
 		const nextOrder =
 			existingStatuses.length > 0 ? Math.max(...existingStatuses.map((s) => s.order || 0)) + 1 : 1;
 
-		return await db
+		const inserted = await db
 			.insert(task_status)
 			.values({
 				id,
@@ -47,12 +62,60 @@ export const taskStatusService = {
 				order: nextOrder
 			})
 			.returning();
+		const record = inserted[0];
+		if (record && options?.actorId) {
+			await activityService.record({
+				projectId,
+				userId: options.actorId,
+				type: 'TASK_STATUS_CREATED',
+				description: `Status "${record.name}" ditambahkan ke proyek`,
+				metadata: { statusId: record.id }
+			});
+		}
+		return inserted[0];
 	},
-	update: async (id: string, item: Partial<Omit<TaskStatus, 'id'>>) => {
-		return await db.update(task_status).set(item).where(eq(task_status.id, id));
+	update: async (id: string, item: Partial<Omit<TaskStatus, 'id'>>, options?: TaskStatusActivityOptions) => {
+		let previous: TaskStatus | null = null;
+		if (options?.actorId) {
+			previous = (await db.query.task_status.findFirst({ where: eq(task_status.id, id) })) ?? null;
+		}
+		const updatedRows = await db.update(task_status).set(item).where(eq(task_status.id, id)).returning();
+		const updated = updatedRows[0];
+		const projectId = updated?.projectId ?? previous?.projectId ?? null;
+		if (options?.actorId && projectId && updated) {
+			const changes: Record<string, { old: unknown; new: unknown }> = {};
+			if (item.name && item.name !== previous?.name) {
+				changes.name = { old: previous?.name, new: item.name };
+			}
+			if (item.order !== undefined && item.order !== previous?.order) {
+				changes.order = { old: previous?.order, new: item.order };
+			}
+			await activityService.record({
+				projectId,
+				userId: options.actorId,
+				type: 'TASK_STATUS_UPDATED',
+				description: `Status "${updated.name}" diperbarui`,
+				metadata: Object.keys(changes).length ? { changes } : undefined
+			});
+		}
+		return updatedRows;
 	},
-	delete: async (id: string) => {
-		return await db.delete(task_status).where(eq(task_status.id, id));
+	delete: async (id: string, options?: TaskStatusActivityOptions) => {
+		let existing: TaskStatus | null = null;
+		if (options?.actorId) {
+			existing = (await db.query.task_status.findFirst({ where: eq(task_status.id, id) })) ?? null;
+		}
+		const result = await db.delete(task_status).where(eq(task_status.id, id));
+		if (options?.actorId && existing?.projectId) {
+			await activityService.record({
+				projectId: existing.projectId,
+				userId: options.actorId,
+				type: 'TASK_STATUS_DELETED',
+				description: `Status "${existing.name}" dihapus`,
+				metadata: { statusId: existing.id }
+			});
+		}
+		return result;
 	},
 	getTaskCountInStatus: async (projectId?: string) => {
 		const baseQuery = db
@@ -72,7 +135,7 @@ export const taskStatusService = {
 
 		return await baseQuery;
 	},
-	reorderForProject: async (projectId: string, orderedIds: string[]) => {
+	reorderForProject: async (projectId: string, orderedIds: string[], options?: TaskStatusActivityOptions) => {
 		const existing = await db
 			.select({ id: task_status.id })
 			.from(task_status)
@@ -92,5 +155,14 @@ export const taskStatusService = {
 					.where(eq(task_status.id, statusId));
 			}
 		});
+		if (options?.actorId) {
+			await activityService.record({
+				projectId,
+				userId: options.actorId,
+				type: 'TASK_STATUS_REORDERED',
+				description: 'Urutan status diperbarui',
+				metadata: { orderedIds: finalOrder }
+			});
+		}
 	}
 };

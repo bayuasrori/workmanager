@@ -11,22 +11,36 @@
 		task?: Partial<ProjectTask> & { id: string };
 	};
 
-	let { data }: { data: PageData } = $props();
+	export let data: PageData;
 
-	let showCreateStatus = $state(false);
-	let newStatusName = $state('');
-	let kanbanKey = $state(0);
-	let showCreateTask = $state(false);
-	let newTaskName = $state('');
-	let newTaskDescription = $state('');
-	let newTaskStatusId = $state('');
-	let creatingStatusId = $state('');
-	let statusDragSourceId: string | null = $state(null);
-	let isCreatingTask = $state(false);
-	let editingTaskId: string | null = $state(null);
-	let editTaskName = $state('');
-	let editTaskDescription = $state('');
-	let taskStatuses = $state(data.taskStatuses);
+	let showCreateStatus = false;
+	let newStatusName = '';
+	let kanbanKey = 0;
+	let showCreateTask = false;
+	let newTaskName = '';
+	let newTaskDescription = '';
+	let newTaskStatusId = '';
+	let creatingStatusId = '';
+	let statusDragSourceId: string | null = null;
+	let isCreatingTask = false;
+	let editingTaskId: string | null = null;
+	let editTaskName = '';
+	let editTaskDescription = '';
+	let taskStatuses = [...data.taskStatuses];
+	let tasks = [...data.tasks];
+
+	let previousTaskStatuses = data.taskStatuses;
+	let previousTasks = data.tasks;
+
+	$: if (data.taskStatuses !== previousTaskStatuses) {
+		previousTaskStatuses = data.taskStatuses;
+		taskStatuses = [...data.taskStatuses];
+	}
+
+	$: if (data.tasks !== previousTasks) {
+		previousTasks = data.tasks;
+		tasks = [...data.tasks];
+	}
 
 	function confirmAndDelete() {
 		if (
@@ -77,12 +91,12 @@
 		}
 		const taskId = transfer?.getData(TASK_DRAG_TYPE) || transfer?.getData('text/plain');
 		if (taskId) {
-			const taskToUpdate = data.tasks.find((t) => t.id === taskId);
+			const taskIndex = tasks.findIndex((t) => t.id === taskId);
 			let oldStatusId: string | null | undefined;
-			if (taskToUpdate) {
-				oldStatusId = taskToUpdate.statusId;
-				taskToUpdate.statusId = newStatusId;
-				data.tasks = [...data.tasks];
+			if (taskIndex !== -1) {
+				oldStatusId = tasks[taskIndex]?.statusId;
+				tasks[taskIndex] = { ...tasks[taskIndex], statusId: newStatusId };
+				tasks = [...tasks];
 				kanbanKey += 1;
 			}
 
@@ -95,9 +109,9 @@
 				body: formData
 			});
 
-			if (!response.ok && taskToUpdate && oldStatusId != null) {
-				taskToUpdate.statusId = oldStatusId;
-				data.tasks = [...data.tasks];
+			if (!response.ok && taskIndex !== -1 && oldStatusId != null) {
+				tasks[taskIndex] = { ...tasks[taskIndex], statusId: oldStatusId };
+				tasks = [...tasks];
 				kanbanKey += 1;
 			}
 		}
@@ -215,7 +229,8 @@
 		formData.append('name', nameToSend);
 		formData.append('description', descToSend);
 		formData.append('statusId', statusToUse);
-		formData.append('projectId', data.tasks[0]?.projectId || '');
+		const projectId = data.project?.id ?? tasks[0]?.projectId ?? '';
+		formData.append('projectId', projectId);
 
 		isCreatingTask = true;
 
@@ -272,10 +287,10 @@
 		if (response.ok) {
 			const result = (await response.json()) as UpdateTaskResponse;
 			if (result?.task) {
-				const idx = data.tasks.findIndex((t) => t.id === taskId);
+				const idx = tasks.findIndex((t) => t.id === taskId);
 				if (idx !== -1) {
-					data.tasks[idx] = { ...data.tasks[idx], ...result.task };
-					data.tasks = [...data.tasks];
+					tasks[idx] = { ...tasks[idx], ...result.task };
+					tasks = [...tasks];
 				}
 			}
 			cancelEditTask();
@@ -283,14 +298,14 @@
 	}
 
 	async function handleDeleteTask(taskId: string) {
-		const prev = data.tasks;
-		data.tasks = prev.filter((t) => t.id !== taskId);
+		const prev = tasks;
+		tasks = prev.filter((t) => t.id !== taskId);
 		kanbanKey += 1;
 		const formData = new FormData();
 		formData.append('taskId', taskId);
 		const res = await fetch(`/tasks/${taskId}`, { method: 'DELETE', body: formData });
 		if (!res.ok) {
-			data.tasks = prev;
+			tasks = prev;
 			kanbanKey += 1;
 		}
 	}
@@ -307,7 +322,7 @@
 			<div class="flex items-center gap-4 text-sm text-base-content/60">
 				<span>Project Board</span>
 				<span>•</span>
-				<span>{data.tasks.length} tasks</span>
+				<span>{tasks.length} tasks</span>
 			</div>
 			<div class="flex gap-2 mt-4">
 				<button class="btn btn-primary btn-sm" onclick={() => (showCreateTask = !showCreateTask)}>
@@ -324,7 +339,7 @@
 		</div>
 
 		<KanbanBoard
-			tasks={data.tasks}
+			tasks={tasks}
 			{taskStatuses}
 			{kanbanKey}
 			{showCreateTask}

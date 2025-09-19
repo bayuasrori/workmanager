@@ -35,8 +35,9 @@
 		onCancelCreateTask?: () => void;
 		onStartEditTask?: (taskId: string, name: string, description: string | null) => void;
 		onCancelEditTask?: () => void;
-		onUpdateTask?: (taskId: string) => void;
-		onDeleteTask?: (taskId: string) => void;
+	onUpdateTask?: (taskId: string) => void;
+	onDeleteTask?: (taskId: string) => void;
+	onDeleteStatus?: (statusId: string) => void;
 		onDragStart?: (event: DragEvent, taskId: string) => void;
 		onDrop?: (event: DragEvent, newStatusId: string) => void;
 		onAllowDrop?: (event: DragEvent) => void;
@@ -50,10 +51,11 @@
 		onNewTaskDescriptionChange?: (value: string) => void;
 		onNewTaskStatusIdChange?: (value: string) => void;
 		onEditTaskNameChange?: (value: string) => void;
-		onEditTaskDescriptionChange?: (value: string) => void;
-		showInlineCreate?: boolean;
-		showTaskActions?: boolean;
-		taskLinkPrefix?: string;
+	onEditTaskDescriptionChange?: (value: string) => void;
+	showInlineCreate?: boolean;
+	showTaskActions?: boolean;
+	allowStatusDelete?: boolean;
+	taskLinkPrefix?: string;
 	}
 
 	const STATUS_DRAG_TYPE = 'application/task-status-id';
@@ -88,11 +90,12 @@
 		onCreateStatus = () => {},
 		onStartCreateTaskForStatus = () => {},
 		onCancelCreateTask = () => {},
-		onStartEditTask = () => {},
-		onCancelEditTask = () => {},
-		onUpdateTask = () => {},
-		onDeleteTask = () => {},
-		onDragStart = () => {},
+	onStartEditTask = () => {},
+	onCancelEditTask = () => {},
+	onUpdateTask = () => {},
+	onDeleteTask = () => {},
+	onDeleteStatus = () => {},
+	onDragStart = () => {},
 		onDrop = () => {},
 		onAllowDrop = () => {},
 		onDragEnter = () => {},
@@ -105,10 +108,11 @@
 		onNewTaskDescriptionChange = () => {},
 		onNewTaskStatusIdChange = () => {},
 		onEditTaskNameChange = () => {},
-		onEditTaskDescriptionChange = () => {},
-		showInlineCreate = true,
-		showTaskActions = true,
-		taskLinkPrefix = '/tasks'
+	onEditTaskDescriptionChange = () => {},
+	showInlineCreate = true,
+	showTaskActions = true,
+	allowStatusDelete = false,
+	taskLinkPrefix = '/tasks'
 	}: Props = $props();
 </script>
 
@@ -218,6 +222,17 @@
 					<div class="flex items-center justify-between gap-2">
 						<h2 class="card-title" id="status-{status.id}">{status.name}</h2>
 						<div class="flex items-center gap-2">
+							{#if allowStatusDelete}
+								<button
+									class="btn btn-ghost btn-xs text-error"
+									type="button"
+									onclick={() => onDeleteStatus(status.id)}
+									title="Delete column"
+									aria-label="Delete column"
+								>
+									✕
+								</button>
+							{/if}
 							<button
 								class="btn btn-ghost btn-xs"
 								type="button"

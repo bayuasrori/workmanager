@@ -1,5 +1,7 @@
 <script lang="ts">
-	const data = $props();
+	import type { PageData } from './$types';
+
+	export let data: PageData;
 </script>
 
 <div class="p-4">

@@ -8,10 +8,10 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
-	updateStatus: async ({ request, params }) => {
+	updateStatus: async ({ request, params, locals }) => {
 		const data = await request.formData();
 		const name = data.get('name') as string;
-		await taskStatusService.update(params.id, { name });
+		await taskStatusService.update(params.id, { name }, { actorId: locals.user?.id });
 		throw redirect(303, '/task-status');
 	}
 };

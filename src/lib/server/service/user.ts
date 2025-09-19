@@ -12,10 +12,15 @@ export const userService = {
 	},
 	create: async (item: Omit<User, 'id'>) => {
 		const id = crypto.randomUUID();
-		return await db.insert(user).values({ ...item, id });
+		const email = item.email?.trim().toLowerCase();
+		return await db.insert(user).values({ ...item, id, email });
 	},
 	update: async (id: string, item: Partial<Omit<User, 'id'>>) => {
-		return await db.update(user).set(item).where(eq(user.id, id));
+		const updated: Partial<Omit<User, 'id'>> = { ...item };
+		if (updated.email) {
+			updated.email = updated.email.trim().toLowerCase();
+		}
+		return await db.update(user).set(updated).where(eq(user.id, id));
 	},
 	delete: async (id: string) => {
 		return await db.delete(user).where(eq(user.id, id));

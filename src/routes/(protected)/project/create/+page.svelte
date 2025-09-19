@@ -1,5 +1,7 @@
 <script lang="ts">
-	const data = $props();
+	import type { PageData } from './$types';
+
+	export let data: PageData;
 </script>
 
 <div class="p-4">
@@ -16,7 +18,7 @@
 				<span class="label-text">Organization</span>
 			</label>
 			<select name="organizationId" id="organizationId" class="select select-bordered w-full">
-				{#each data.data.organizations as org (org.id)}
+				{#each data.organizations as org (org.id)}
 					<option value={org.id}>{org.name}</option>
 				{/each}
 			</select>

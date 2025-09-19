@@ -142,5 +142,26 @@ export const actions: Actions = {
 		if (!taskId) return fail(400, { success: false });
 		await publicBoardService.deleteTask(taskId);
 		return { success: true };
+	},
+	deleteStatus: async ({ request, params }) => {
+		const data = await request.formData();
+		const statusId = (data.get('statusId') as string) || '';
+		if (!statusId) {
+			return fail(400, { success: false, error: 'Status ID is required' });
+		}
+
+		const board = await publicBoardService.getBySlug(params.slug);
+		if (!board) {
+			return fail(404, { success: false, error: 'Board not found' });
+		}
+
+		const status = await taskStatusService.getById(statusId);
+		if (!status || status.projectId !== board.id) {
+			return fail(404, { success: false, error: 'Status not found' });
+		}
+
+		await publicBoardService.deleteTasksByStatus(board.id, statusId);
+		await taskStatusService.delete(statusId);
+		return { success: true };
 	}
 };

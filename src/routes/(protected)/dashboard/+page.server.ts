@@ -10,6 +10,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 	const user_id = locals.user?.id;
 	const requestedProjectId = url.searchParams.get('projectId') ?? '';
+	const hasProjectParam = url.searchParams.has('projectId');
 
 	const [rawProjects, userTaskCountResult] = await Promise.all([
 		projectService.getByMemberUserId(user_id),
@@ -18,10 +19,17 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const projects = rawProjects.filter((project: MemberProject) => !project.isPublic);
 	const projectIds = new Set(projects.map((project) => project.id));
-	const selectedProjectId =
-		requestedProjectId && projectIds.has(requestedProjectId) ? requestedProjectId : '';
+	let selectedProjectId = '';
+	if (hasProjectParam) {
+		selectedProjectId =
+			requestedProjectId && projectIds.has(requestedProjectId) ? requestedProjectId : '';
+	} else {
+		selectedProjectId = projects.at(0)?.id ?? '';
+	}
 
-	const tasks_status = await taskStatusService.getTaskCountInStatus(selectedProjectId || undefined);
+	const tasks_status = await taskStatusService.getTaskCountInStatus(
+		selectedProjectId || undefined
+	);
 
 	const taskCount = userTaskCountResult?.[0]?.count ?? 0;
 

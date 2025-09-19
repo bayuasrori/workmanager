@@ -2,9 +2,9 @@
 	import { onMount } from 'svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 
-	let { children, data } = $props();
-	let mobileOpen = $state(false);
-	let sidebarOpen = $state(false);
+	export let data;
+	let mobileOpen = false;
+	let sidebarOpen = false;
 
 	const handleSidebarItemClick = (event: Event) => {
 		const target = event.target as HTMLElement | null;
@@ -218,7 +218,7 @@
 			<Sidebar {data} />
 		</div>
 		<main class="flex-grow min-w-0 p-4">
-			{@render children()}
+			<slot />
 		</main>
 	</div>
 </div>
