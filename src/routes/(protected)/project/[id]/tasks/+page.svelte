@@ -315,7 +315,12 @@
 	<div class="container mx-auto px-4">
 		<!-- Project Header -->
 		<div class="mb-6">
-			<h1 class="text-3xl font-bold text-base-content mb-2">Tasks for Project</h1>
+			<h1 class="text-3xl font-bold text-base-content mb-2">Tasks for Project <a
+				href={data.project ? `/project/${data.project.id}` : '/project'}
+				class="btn btn-outline btn-sm"
+			>
+				Lihat Info Proyek
+			</a></h1>
 			{#if data.project?.description}
 				<p class="text-base-content/70 mb-2">{data.project.description}</p>
 			{/if}
@@ -324,10 +329,9 @@
 				<span>•</span>
 				<span>{tasks.length} tasks</span>
 			</div>
-			<div class="flex gap-2 mt-4">
-				<button class="btn btn-primary btn-sm" onclick={() => (showCreateTask = !showCreateTask)}>
-					Create New Task
-				</button>
+			<div class="flex flex-wrap gap-2 mt-4">
+
+
 				<button
 					class="btn btn-secondary btn-sm"
 					onclick={() => (showCreateStatus = !showCreateStatus)}

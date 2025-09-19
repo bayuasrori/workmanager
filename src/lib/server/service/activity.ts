@@ -1,6 +1,6 @@
 import { db } from '../db';
-import { activity } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { activity, project, projectMember } from '../db/schema';
+import { eq, desc } from 'drizzle-orm';
 
 export type ActivityType =
 	| 'TASK_CREATED'
@@ -54,5 +54,22 @@ export const activityService = {
 			orderBy: (activity, { desc: orderDesc }) => [orderDesc(activity.createdAt)],
 			limit
 		});
+	},
+	getRecentForUser: async (userId: string, limit = 10) => {
+		return await db
+			.select({
+				id: activity.id,
+				description: activity.description,
+				type: activity.type,
+				createdAt: activity.createdAt,
+				projectId: activity.projectId,
+				projectName: project.name
+			})
+			.from(activity)
+			.innerJoin(project, eq(project.id, activity.projectId))
+			.innerJoin(projectMember, eq(projectMember.projectId, project.id))
+			.where(eq(projectMember.userId, userId))
+			.orderBy(desc(activity.createdAt))
+			.limit(limit);
 	}
 };

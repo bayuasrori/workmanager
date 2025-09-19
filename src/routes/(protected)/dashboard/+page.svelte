@@ -6,17 +6,19 @@
 	let projects = data?.projects ?? [];
 	let tasksStatus = data?.tasks_status ?? [];
 	let taskCount = data?.taskCount ?? 0;
+	let recentActivities = data?.recentActivities ?? [];
 	let selectedProjectId = data?.selectedProjectId ?? '';
 	let dataSelectedProjectId = selectedProjectId;
 	let projectName = selectedProjectId
-		? (projects.find((project) => project.id === selectedProjectId)?.name ?? 'Selected project')
-		: 'All projects';
+		? (projects.find((project) => project.id === selectedProjectId)?.name ?? 'Proyek terpilih')
+		: 'Semua proyek';
 	let statusTotalCount = tasksStatus.reduce((sum, status) => sum + Number(status.count ?? 0), 0);
 	let tasksLink = selectedProjectId ? `/project/${selectedProjectId}/tasks` : '/tasks';
 
 	$: projects = data?.projects ?? [];
 	$: tasksStatus = data?.tasks_status ?? [];
 	$: taskCount = data?.taskCount ?? 0;
+	$: recentActivities = data?.recentActivities ?? [];
 
 	$: {
 		const incomingId = data?.selectedProjectId ?? '';
@@ -27,8 +29,8 @@
 	}
 
 	$: projectName = selectedProjectId
-		? (projects.find((project) => project.id === selectedProjectId)?.name ?? 'Selected project')
-		: 'All projects';
+		? (projects.find((project) => project.id === selectedProjectId)?.name ?? 'Proyek terpilih')
+		: 'Semua proyek';
 
 	$: statusTotalCount = tasksStatus.reduce((sum, status) => sum + Number(status.count ?? 0), 0);
 
@@ -45,20 +47,50 @@
 		}
 	};
 
+	const formatter = new Intl.DateTimeFormat('id-ID', {
+		dateStyle: 'medium',
+		timeStyle: 'short'
+	});
+
+	const typeDescriptions: Record<string, string> = {
+		TASK_CREATED: 'Tugas baru dibuat',
+		TASK_UPDATED: 'Tugas diperbarui',
+		TASK_DELETED: 'Tugas dihapus',
+		TASK_STATUS_CREATED: 'Status baru ditambahkan',
+		TASK_STATUS_UPDATED: 'Status diperbarui',
+		TASK_STATUS_DELETED: 'Status dihapus',
+		TASK_STATUS_REORDERED: 'Urutan status diperbarui',
+		TASK_STATUS_CHANGED: 'Status tugas berubah',
+		TASK_COMMENT_ADDED: 'Komentar ditambahkan',
+		TASK_COMMENT_DELETED: 'Komentar dihapus'
+	};
+
+	const describeActivity = (activity: (typeof recentActivities)[number]) =>
+		activity?.description ?? typeDescriptions[activity?.type ?? ''] ?? 'Aktivitas terbaru';
+
+	const formatTimestamp = (value: Date | string) => {
+		try {
+			const date = value instanceof Date ? value : new Date(value);
+			return formatter.format(date);
+		} catch {
+			return '';
+		}
+	};
+
 </script>
 
 <div class="container mx-auto p-4">
     <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-lime-100 via-emerald-200/70 to-amber-100 p-6 shadow-xl">
         <div class="flex flex-col gap-4 pb-2 md:flex-row md:items-end md:justify-between">
             <div>
-                <h1 class="text-3xl font-extrabold text-emerald-900">Dashboard</h1>
-                <p class="mt-1 text-sm text-emerald-900/80">Overview for {projectName}</p>
+                <h1 class="text-3xl font-extrabold text-emerald-900">Dasbor</h1>
+                <p class="mt-1 text-sm text-emerald-900/80">Ringkasan untuk {projectName}</p>
             </div>
         {#if projects.length}
             <form method="GET" class="w-full max-w-xs md:w-auto">
                     <label class="form-control w-full">
                         <div class="label">
-                            <span class="label-text text-sm font-medium text-emerald-900">Select project</span>
+                            <span class="label-text text-sm font-medium text-emerald-900">Pilih proyek</span>
                         </div>
                         <select
                             class="select select-bordered bg-emerald-50 border-emerald-300 text-emerald-900 focus:border-emerald-400 focus:outline-none focus:ring focus:ring-emerald-200"
@@ -66,7 +98,7 @@
                             bind:value={selectedProjectId}
                             on:change={submitProjectFilter}
                         >
-                        <option value="">All projects</option>
+                        <option value="">Semua proyek</option>
                         {#each projects as project (project.id)}
                             <option value={project.id}>{project.name}</option>
                         {/each}
@@ -79,7 +111,7 @@
         <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div class="card bg-emerald-800 text-emerald-50 shadow-lg border border-emerald-700">
             <div class="card-body">
-                <h2 class="card-title text-emerald-100">Total Projects</h2>
+                <h2 class="card-title text-emerald-100">Total Proyek</h2>
                 <p class="text-4xl font-extrabold">{projects.length}</p>
                 <div class="card-actions justify-end">
                     <a
@@ -87,14 +119,14 @@
                         class="btn btn-sm bg-amber-400 hover:bg-amber-500 border-none text-emerald-900"
                         data-sveltekit-reload
                     >
-                        View Projects
+                        Lihat Proyek
                     </a>
                 </div>
             </div>
         </div>
         <div class="card bg-amber-300 text-emerald-900 shadow-lg border border-amber-200">
             <div class="card-body">
-                <h2 class="card-title text-emerald-900/80">Tasks Assigned to You</h2>
+                <h2 class="card-title text-emerald-900/80">Tugas untuk Kamu</h2>
                 <p class="text-4xl font-extrabold">{taskCount}</p>
                 <div class="card-actions justify-end">
                     <a
@@ -102,23 +134,23 @@
                         class="btn btn-sm bg-emerald-700 hover:bg-emerald-800 border-none text-emerald-50"
                         data-sveltekit-reload
                     >
-                        View My Tasks
+                        Lihat Tugas Saya
                     </a>
                 </div>
             </div>
         </div>
         <div class="card bg-emerald-50 text-emerald-900 shadow-lg border border-emerald-200">
             <div class="card-body">
-                <h2 class="card-title text-emerald-900/80">Tracked Tasks</h2>
+                <h2 class="card-title text-emerald-900/80">Tugas Terpantau</h2>
                 <p class="text-4xl font-extrabold">{statusTotalCount}</p>
-                <p class="text-xs text-emerald-900/70">Across columns for {projectName}</p>
+                <p class="text-xs text-emerald-900/70">Di semua kolom untuk {projectName}</p>
             </div>
         </div>
         <div class="card bg-amber-100 text-emerald-900 shadow-lg border border-amber-200">
             <div class="card-body">
-                <h2 class="card-title text-emerald-900/80">Focus Summary</h2>
+                <h2 class="card-title text-emerald-900/80">Ringkasan Fokus</h2>
                 <p class="text-base text-emerald-900/80">
-                    Keep momentum by reviewing tasks in the boards below and closing out blocked items.
+                    Jaga ritme kerja dengan meninjau papan di bawah ini dan selesaikan tugas yang tersendat.
                 </p>
             </div>
         </div>
@@ -141,7 +173,7 @@
                                 class="btn btn-sm bg-amber-400 text-emerald-900 border-none hover:bg-amber-500"
                                 data-sveltekit-reload
                             >
-                                View Tasks
+                                Lihat Tugas
                             </a>
                         </div>
                     </div>
@@ -150,30 +182,41 @@
         </div>
     {:else}
         <div class="alert bg-emerald-50 text-emerald-900 border border-emerald-200 mt-6">
-            <span>No task status data available yet for this selection.</span>
+            <span>Belum ada data status tugas untuk pilihan ini.</span>
         </div>
     {/if}
 
-    <div class="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div class="card bg-white shadow-lg border border-emerald-200">
-            <div class="card-body">
-                <h2 class="card-title text-emerald-900">Recent Activity</h2>
-                <ul class="space-y-2 text-sm text-emerald-800">
-                    <li>✨ A new task "Design new logo" was added.</li>
-                    <li>✅ "Develop homepage" moved to Done.</li>
-                    <li>🚀 Project "Mobile App Redesign" launched.</li>
-                    <li>🤝 Jane Smith joined "Website SEO".</li>
-                </ul>
-            </div>
-        </div>
+	<div class="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
+		<div class="card bg-white shadow-lg border border-emerald-200">
+			<div class="card-body">
+				<h2 class="card-title text-emerald-900">Aktivitas Terbaru</h2>
+				{#if recentActivities.length}
+					<ul class="space-y-3 text-sm text-emerald-800">
+						{#each recentActivities as activity (activity.id)}
+							<li class="rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-3">
+								<div class="flex items-center justify-between gap-3">
+									<p class="font-semibold text-emerald-900">{describeActivity(activity)}</p>
+									<span class="text-xs text-emerald-700/70">{formatTimestamp(activity.createdAt)}</span>
+								</div>
+								<p class="mt-1 text-xs text-emerald-700/80">{activity.projectName}</p>
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					<p class="rounded-lg border border-dashed border-emerald-200 bg-emerald-50/40 px-4 py-6 text-center text-sm text-emerald-700/70">
+						Belum ada aktivitas terbaru di proyek kamu.
+					</p>
+				{/if}
+			</div>
+		</div>
 
-        <div class="card bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-emerald-50 shadow-lg">
-            <div class="card-body">
-                <h2 class="card-title">Task Completion Rate</h2>
+		<div class="card bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-emerald-50 shadow-lg">
+		<div class="card-body">
+			<h2 class="card-title">Tingkat Penyelesaian Tugas</h2>
                 <div class="h-4 w-full rounded-full bg-emerald-900/40">
                     <div class="h-4 rounded-full bg-amber-300" style="width: 75%"></div>
                 </div>
-                <p class="mt-2 text-center text-sm text-emerald-50/90">75% of tasks completed</p>
+                <p class="mt-2 text-center text-sm text-emerald-50/90">75% tugas selesai</p>
             </div>
         </div>
     </div>

@@ -30,7 +30,7 @@
 			aria-expanded={isOpen}
 			aria-controls="sidebar-content"
 		>
-			Show Sidebar
+			 Sidebar
 		</button>
 	{/if}
 	<aside
@@ -74,6 +74,12 @@
 				class="btn btn-sm w-full mt-3 border-none bg-amber-400 text-emerald-900 hover:bg-amber-300 font-semibold"
 		>
 				Create Organization
+			</a>
+			<a
+				href="/project/create"
+				class="btn btn-sm w-full mt-2 border border-emerald-500 bg-emerald-800/70 text-emerald-100 hover:bg-emerald-700"
+		>
+				Tambah Proyek
 			</a>
 			<a
 				href="/import-board"

@@ -9,11 +9,14 @@ import { db } from '$lib/server/db';
 import { projectMember } from '$lib/server/db/schema';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import type { Organization } from '$lib/server/db/schema';
 
-export const load: PageServerLoad = async () => {
-	const orgs = await organizationService.getAll();
-	const organizations = orgs.filter((o: Organization) => o.name !== 'Public');
+export const load: PageServerLoad = async ({ locals }) => {
+	const userId = locals.user?.id;
+	if (!userId) {
+		return { organizations: [] };
+	}
+	const orgs = await organizationService.getByMemberUserId(userId);
+	const organizations = orgs.filter((o) => o.name !== 'Public');
 	return { organizations };
 };
 
@@ -40,6 +43,17 @@ export const actions: Actions = {
 
 		if (!boardUrl.trim()) return fail(400, { message: 'Board URL or slug is required' });
 		if (!organizationId) return fail(400, { message: 'Destination organization is required' });
+
+		const userId = locals.user?.id;
+		if (!userId) {
+			return fail(401, { message: 'Unauthorized' });
+		}
+
+		const allowedOrganizations = await organizationService.getByMemberUserId(userId);
+		const hasAccess = allowedOrganizations.some((org) => org.id === organizationId);
+		if (!hasAccess) {
+			return fail(403, { message: 'You are not a member of the selected organization' });
+		}
 
 		const slug = extractSlugFromUrl(boardUrl);
 		if (!slug) return fail(400, { message: 'Invalid board URL' });

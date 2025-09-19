@@ -1,4 +1,4 @@
-import { projectService, taskService, taskStatusService } from '$lib/server/service';
+import { activityService, projectService, taskService, taskStatusService } from '$lib/server/service';
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
@@ -12,9 +12,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const requestedProjectId = url.searchParams.get('projectId') ?? '';
 	const hasProjectParam = url.searchParams.has('projectId');
 
-	const [rawProjects, userTaskCountResult] = await Promise.all([
+	const [rawProjects, userTaskCountResult, recentActivities] = await Promise.all([
 		projectService.getByMemberUserId(user_id),
-		taskService.getUserTaskCount(user_id)
+		taskService.getUserTaskCount(user_id),
+		activityService.getRecentForUser(user_id, 5)
 	]);
 
 	const projects = rawProjects.filter((project: MemberProject) => !project.isPublic);
@@ -33,5 +34,5 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const taskCount = userTaskCountResult?.[0]?.count ?? 0;
 
-	return { taskCount, tasks_status, projects, selectedProjectId };
+	return { taskCount, tasks_status, projects, selectedProjectId, recentActivities };
 };

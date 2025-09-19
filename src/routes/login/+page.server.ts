@@ -5,6 +5,19 @@ import { eq } from 'drizzle-orm';
 import * as auth from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
+import {
+	organizationMemberService,
+	organizationService,
+	projectService,
+	taskStatusService
+} from '$lib/server/service';
+
+const DEFAULT_PROJECT_NAME = 'My Project';
+const DEFAULT_STATUS_PRESETS = [
+	{ name: 'To Do', order: 1 },
+	{ name: 'In Progress', order: 2 },
+	{ name: 'Done', order: 3 }
+];
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
@@ -50,6 +63,8 @@ export const actions: Actions = {
 		const session = await auth.createSession(sessionToken, existingUser.id);
 		auth.setSessionTokenCookie(event, sessionToken, session.expiresAt);
 
+		await ensureDefaultWorkspaceForUser(existingUser.id, existingUser.username ?? existingUser.email);
+
 		return redirect(302, '/dashboard');
 	},
 	register: async (event) => {
@@ -89,12 +104,54 @@ export const actions: Actions = {
 			const sessionToken = auth.generateSessionToken();
 			const session = await auth.createSession(sessionToken, userId);
 			auth.setSessionTokenCookie(event, sessionToken, session.expiresAt);
+
+			await ensureDefaultWorkspaceForUser(userId, username as string);
 		} catch {
 			return fail(500, { message: 'Terjadi kesalahan.' });
 		}
 		return redirect(302, '/dashboard');
 	}
 };
+
+async function ensureDefaultWorkspaceForUser(userId: string, username: string) {
+	const existingProjects = await projectService.getByMemberUserId(userId);
+	if (existingProjects.length > 0) return;
+
+	const organizationName = deriveOrganizationName(username);
+	const organization = await organizationService.create({ name: organizationName, ownerId: userId });
+
+	const existingMembership = await organizationMemberService.get(organization.id, userId);
+	if (!existingMembership) {
+		await organizationMemberService.create({ organizationId: organization.id, userId });
+	}
+
+	const project = await projectService.create(
+		{
+			name: DEFAULT_PROJECT_NAME,
+			description: 'Proyek awal kamu. Mulai tambahkan tugas dan atur progres tim di sini.',
+			slug: null,
+			organizationId: organization.id,
+			isPublic: false
+		},
+		userId
+	);
+
+	for (const preset of DEFAULT_STATUS_PRESETS) {
+		await taskStatusService.create(
+			{ name: preset.name, order: preset.order, projectId: project.id },
+			{ actorId: userId }
+		);
+	}
+}
+
+function deriveOrganizationName(username: string) {
+	const cleaned = username
+		.split(/[-_\s]+/)
+		.filter(Boolean)
+		.map((part) => part.charAt(0).toUpperCase() + part.slice(1));
+	const display = cleaned.length ? cleaned.join(' ') : 'Pengguna Baru';
+	return `Organisasi ${display}`;
+}
 
 function generateUserId() {
 	// ID with 120 bits of entropy, or about the same as UUID v4.
