@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { TaskStatus } from '$lib/server/db/schema';
+	import DeleteStatusModal from './DeleteStatusModal.svelte';
 
 	interface TaskWithAssignee {
 		id: string;
@@ -35,9 +36,9 @@
 		onCancelCreateTask?: () => void;
 		onStartEditTask?: (taskId: string, name: string, description: string | null) => void;
 		onCancelEditTask?: () => void;
-	onUpdateTask?: (taskId: string) => void;
-	onDeleteTask?: (taskId: string) => void;
-	onDeleteStatus?: (statusId: string) => void;
+		onUpdateTask?: (taskId: string) => void;
+		onDeleteTask?: (taskId: string) => void;
+		onDeleteStatus?: (statusId: string) => void;
 		onDragStart?: (event: DragEvent, taskId: string) => void;
 		onDrop?: (event: DragEvent, newStatusId: string) => void;
 		onAllowDrop?: (event: DragEvent) => void;
@@ -51,11 +52,11 @@
 		onNewTaskDescriptionChange?: (value: string) => void;
 		onNewTaskStatusIdChange?: (value: string) => void;
 		onEditTaskNameChange?: (value: string) => void;
-	onEditTaskDescriptionChange?: (value: string) => void;
-	showInlineCreate?: boolean;
-	showTaskActions?: boolean;
-	allowStatusDelete?: boolean;
-	taskLinkPrefix?: string;
+		onEditTaskDescriptionChange?: (value: string) => void;
+		showInlineCreate?: boolean;
+		showTaskActions?: boolean;
+		allowStatusDelete?: boolean;
+		taskLinkPrefix?: string;
 	}
 
 	const STATUS_DRAG_TYPE = 'application/task-status-id';
@@ -70,6 +71,8 @@
 		const iterable = types as unknown as Iterable<string>;
 		return Array.from(iterable).includes(STATUS_DRAG_TYPE);
 	};
+
+	let draggingTaskId: string | null = $state(null);
 
 	let {
 		tasks = [],
@@ -90,12 +93,12 @@
 		onCreateStatus = () => {},
 		onStartCreateTaskForStatus = () => {},
 		onCancelCreateTask = () => {},
-	onStartEditTask = () => {},
-	onCancelEditTask = () => {},
-	onUpdateTask = () => {},
-	onDeleteTask = () => {},
-	onDeleteStatus = () => {},
-	onDragStart = () => {},
+		onStartEditTask = () => {},
+		onCancelEditTask = () => {},
+		onUpdateTask = () => {},
+		onDeleteTask = () => {},
+		onDeleteStatus = () => {},
+		onDragStart = () => {},
 		onDrop = () => {},
 		onAllowDrop = () => {},
 		onDragEnter = () => {},
@@ -108,13 +111,41 @@
 		onNewTaskDescriptionChange = () => {},
 		onNewTaskStatusIdChange = () => {},
 		onEditTaskNameChange = () => {},
-	onEditTaskDescriptionChange = () => {},
-	showInlineCreate = true,
-	showTaskActions = true,
-	allowStatusDelete = false,
-	taskLinkPrefix = '/tasks'
+		onEditTaskDescriptionChange = () => {},
+		showInlineCreate = true,
+		showTaskActions = true,
+		allowStatusDelete = false,
+		taskLinkPrefix = '/tasks'
 	}: Props = $props();
+
+	let showDeleteStatusModal = $state(false);
+	let statusToDelete: TaskStatus | null = $state(null);
+
+	const handleDeleteStatusRequest = (status: TaskStatus) => {
+		statusToDelete = status;
+		showDeleteStatusModal = true;
+	};
+
+	const confirmDeleteStatus = () => {
+		if (statusToDelete) {
+			onDeleteStatus(statusToDelete.id);
+		}
+		showDeleteStatusModal = false;
+		statusToDelete = null;
+	};
 </script>
+
+{#if statusToDelete}
+	<DeleteStatusModal
+		bind:open={showDeleteStatusModal}
+		statusName={statusToDelete.name}
+		on:confirm={confirmDeleteStatus}
+		on:cancel={() => {
+			showDeleteStatusModal = false;
+			statusToDelete = null;
+		}}
+	/>
+{/if}
 
 {#if showCreateStatus}
 	<div class="card bg-base-200 shadow-lg mb-4">
@@ -192,10 +223,10 @@
 
 <!-- Kanban Board -->
 {#key kanbanKey}
-	<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-5 kanban-board-background">
+	<div class="flex overflow-x-auto gap-5 kanban-board-background">
 		{#each taskStatuses as status (status.id)}
 			<div
-				class="card bg-base-200 shadow-xl"
+				class="card bg-base-200 shadow-xl min-w-60"
 				ondragover={(event) => {
 					if (isStatusDrag(event)) {
 						onStatusDragOver(event, status.id);
@@ -226,7 +257,7 @@
 								<button
 									class="btn btn-ghost btn-xs text-error"
 									type="button"
-									onclick={() => onDeleteStatus(status.id)}
+									onclick={() => handleDeleteStatusRequest(status)}
 									title="Delete column"
 									aria-label="Delete column"
 								>
@@ -312,9 +343,15 @@
 						<ul class="space-y-2">
 							{#each tasks.filter((task) => task.statusId === status.id) as task (task.id)}
 								<li
-									class="border p-2 rounded-md bg-base-100"
+									class="border p-2 rounded-md bg-base-100 transition-shadow duration-200"
+									class:shadow-lg={draggingTaskId === task.id}
+									class:scale-105={draggingTaskId === task.id}
 									draggable="true"
-									ondragstart={(event) => onDragStart(event, task.id)}
+									ondragstart={(event: DragEvent) => {
+										draggingTaskId = task.id;
+										onDragStart(event, task.id);
+									}}
+									ondragend={() => (draggingTaskId = null)}
 								>
 									{#if editingTaskId === task.id}
 										<input
@@ -376,9 +413,10 @@
 											{/if}
 										</p>
 										{#if taskLinkPrefix}
-											<a href="{taskLinkPrefix}/{task.id}" class="btn btn-sm btn-info mt-2"
-												>View Task</a
-											>
+											<a href="{taskLinkPrefix}/{task.id}" class="btn btn-sm btn-primary mt-2">
+												<span class="text-sm">Lihat Detail</span>
+												<span class="text-lg">→</span>
+											</a>
 										{/if}
 									{/if}
 								</li>

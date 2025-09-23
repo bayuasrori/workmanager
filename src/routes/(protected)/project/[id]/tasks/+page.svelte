@@ -309,6 +309,23 @@
 			kanbanKey += 1;
 		}
 	}
+
+	async function handleDeleteStatus(statusId: string) {
+		if (!confirm('Are you sure you want to delete this status? This cannot be undone.')) return;
+
+		const formData = new FormData();
+		formData.append('statusId', statusId);
+
+		const response = await fetch('?/deleteTaskStatus', {
+			method: 'POST',
+			body: formData
+		});
+
+		if (response.ok) {
+			taskStatuses = taskStatuses.filter((s) => s.id !== statusId);
+			kanbanKey += 1;
+		}
+	}
 </script>
 
 <div class="min-h-screen bg-base-100 py-8">
@@ -365,6 +382,7 @@
 			onCancelEditTask={cancelEditTask}
 			onUpdateTask={handleUpdateTask}
 			onDeleteTask={handleDeleteTask}
+			onDeleteStatus={handleDeleteStatus}
 			onDragStart={dragStart}
 			onDrop={drop}
 			onAllowDrop={allowDrop}
@@ -373,14 +391,15 @@
 			onStatusDragEnd={statusDragEnd}
 			onStatusDragOver={statusDragOver}
 			onStatusDrop={statusDrop}
-			onNewStatusNameChange={(value) => (newStatusName = value)}
-			onNewTaskNameChange={(value) => (newTaskName = value)}
-			onNewTaskDescriptionChange={(value) => (newTaskDescription = value)}
-			onNewTaskStatusIdChange={(value) => (newTaskStatusId = value)}
-			onEditTaskNameChange={(value) => (editTaskName = value)}
-			onEditTaskDescriptionChange={(value) => (editTaskDescription = value)}
+			onNewStatusNameChange={(value: string) => (newStatusName = value)}
+			onNewTaskNameChange={(value: string) => (newTaskName = value)}
+			onNewTaskDescriptionChange={(value: string) => (newTaskDescription = value)}
+			onNewTaskStatusIdChange={(value: string) => (newTaskStatusId = value)}
+			onEditTaskNameChange={(value: string) => (editTaskName = value)}
+			onEditTaskDescriptionChange={(value: string) => (editTaskDescription = value)}
 			showInlineCreate={true}
 			showTaskActions={true}
+			allowStatusDelete={true}
 			taskLinkPrefix="/tasks"
 		/>
 	</div>

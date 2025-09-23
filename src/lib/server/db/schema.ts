@@ -1,12 +1,16 @@
 import { sqliteTable, integer, text } from 'drizzle-orm/sqlite-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
+import { membershipType } from './schema/membershipType';
+import { userMembership } from './schema/userMembership';
 
 export const user = sqliteTable('user', {
 	id: text('id').primaryKey(),
 	age: integer('age'),
 	username: text('username').notNull().unique(),
 	email: text('email').notNull().unique(),
-	passwordHash: text('password_hash').notNull()
+	passwordHash: text('password_hash').notNull(),
+	isAdmin: integer('is_admin', { mode: 'boolean' }).default(false),
+	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 });
 
 export const session = sqliteTable('session', {
@@ -83,6 +87,25 @@ export const activity = sqliteTable('activity', {
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 });
 
+export const userRelations = relations(user, ({ many }) => ({
+	memberships: many(userMembership)
+}));
+
+export const membershipTypeRelations = relations(membershipType, ({ many }) => ({
+	users: many(userMembership)
+}));
+
+export const userMembershipRelations = relations(userMembership, ({ one }) => ({
+	user: one(user, {
+		fields: [userMembership.userId],
+		references: [user.id]
+	}),
+	membershipType: one(membershipType, {
+		fields: [userMembership.membershipTypeId],
+		references: [membershipType.id]
+	})
+}));
+
 export const projectRelations = relations(project, ({ one, many }) => ({
 	organization: one(organization, {
 		fields: [project.organizationId],
@@ -125,3 +148,4 @@ export type Task = typeof task.$inferSelect;
 export type TaskStatus = typeof task_status.$inferSelect;
 export type TaskComment = typeof taskComment.$inferSelect;
 export type Activity = typeof activity.$inferSelect;
+export { membershipType, userMembership };

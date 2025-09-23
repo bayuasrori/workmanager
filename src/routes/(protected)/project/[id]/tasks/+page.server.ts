@@ -1,7 +1,7 @@
 import { taskService } from '$lib/server/service/task';
 import { taskStatusService } from '$lib/server/service/taskStatus';
 import { projectService } from '$lib/server/service/project';
-import { json, redirect } from '@sveltejs/kit';
+import { json, redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, url }) => {
@@ -31,14 +31,14 @@ export const actions: Actions = {
 		const name = data.get('name') as string;
 
 		if (!name || name.trim().length === 0) {
-			return json({ success: false, error: 'Status name is required' }, { status: 400 });
+			return { success: false, error: 'Status name is required' };
 		}
 
 		const created = await taskStatusService.createForProject(params.id, name.trim(), {
 			actorId: locals.user?.id
 		});
 		const statusRecord = Array.isArray(created) ? created[0] : created;
-		return json({ success: true, status: statusRecord });
+		return { success: true, status: statusRecord };
 	},
 	reorderStatuses: async ({ request, params, locals }) => {
 		try {
@@ -72,5 +72,14 @@ export const actions: Actions = {
 	deleteProject: async ({ params }) => {
 		await projectService.deleteCascade(params.id);
 		throw redirect(303, '/project');
+	},
+	deleteTaskStatus: async ({ request, locals }) => {
+		const data = await request.formData();
+		const statusId = data.get('statusId') as string;
+		if (!statusId) {
+			return fail(400, { success: false, error: 'Status ID is required' });
+		}
+		await taskStatusService.delete(statusId, { actorId: locals.user?.id });
+		return { success: true };
 	}
 };

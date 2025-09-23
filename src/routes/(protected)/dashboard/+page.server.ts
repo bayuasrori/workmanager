@@ -12,9 +12,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const requestedProjectId = url.searchParams.get('projectId') ?? '';
 	const hasProjectParam = url.searchParams.has('projectId');
 
-	const [rawProjects, userTaskCountResult, recentActivities] = await Promise.all([
+	const [rawProjects, userTasks, recentActivities] = await Promise.all([
 		projectService.getByMemberUserId(user_id),
-		taskService.getUserTaskCount(user_id),
+		taskService.getUserTasks(user_id),
 		activityService.getRecentForUser(user_id, 5)
 	]);
 
@@ -32,7 +32,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		selectedProjectId || undefined
 	);
 
-	const taskCount = userTaskCountResult?.[0]?.count ?? 0;
+	const taskCount = userTasks.length;
 
-	return { taskCount, tasks_status, projects, selectedProjectId, recentActivities };
+	const dailyActivity = await activityService.getDailyActivity(selectedProjectId);
+
+	return { userTasks, taskCount, tasks_status, projects, selectedProjectId, recentActivities, dailyActivity };
 };

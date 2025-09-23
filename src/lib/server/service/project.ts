@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { project, projectMember, task, task_status, taskComment, type Project } from '../db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 
 export const projectService = {
 	getById: async (id: string) => {
@@ -64,5 +64,22 @@ export const projectService = {
 			// Finally delete the project
 			await tx.delete(project).where(eq(project.id, id));
 		});
+	},
+	getTaskCountPerProject: async () => {
+		const query = sql`
+			SELECT
+				p.name,
+				COUNT(t.id) as count
+			FROM
+				project p
+			LEFT JOIN
+				task t ON p.id = t.project_id
+			GROUP BY
+				p.name
+			ORDER BY
+				count DESC
+		`;
+		const result = await db.all(query);
+		return result as { name: string; count: number }[];
 	}
 };

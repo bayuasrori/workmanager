@@ -56,7 +56,7 @@
 					<a href="/login" class="btn btn-primary btn-lg">Coba Gratis Sekarang</a>
 				{/if}
 				<a href="/public-board/create" class="btn btn-accent btn-lg">Buat Papan Publik</a>
-				<a href="#features" class="btn btn-warning btn-lg">Pelajari Lebih Lanjut</a>
+				<a href="#features" class="btn btn-warning btn-lg">Lihat Fitur</a>
 			</div>
 		</div>
 	</div>

@@ -99,14 +99,15 @@ export const actions: Actions = {
 		});
 
 		try {
-			await db.insert(table.user).values({ id: userId, username, email: normalizedEmail, passwordHash });
+			await db.insert(table.user).values({ id: userId, username, email: normalizedEmail, passwordHash, createdAt: new Date() });
 
 			const sessionToken = auth.generateSessionToken();
 			const session = await auth.createSession(sessionToken, userId);
 			auth.setSessionTokenCookie(event, sessionToken, session.expiresAt);
 
 			await ensureDefaultWorkspaceForUser(userId, username as string);
-		} catch {
+		} catch(e) {
+			console.error(e);
 			return fail(500, { message: 'Terjadi kesalahan.' });
 		}
 		return redirect(302, '/dashboard');

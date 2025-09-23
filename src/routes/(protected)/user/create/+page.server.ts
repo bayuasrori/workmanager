@@ -43,7 +43,7 @@ export const actions: Actions = {
 		});
 		const normalizedAge = typeof age === 'number' ? age : null;
 		try {
-			await userService.create({ username, age: normalizedAge, email, passwordHash });
+			await userService.create({ username, age: normalizedAge, email, passwordHash, isAdmin: false });
 		} catch (error) {
 			return fail(400, {
 				message: 'Gagal membuat pengguna. Pastikan nama pengguna dan email belum digunakan.',

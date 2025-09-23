@@ -8,3 +8,4 @@ export * from './taskStatus';
 export * from './taskComment';
 export * from './publicBoard';
 export * from './activity';
+export * from './userMembership';

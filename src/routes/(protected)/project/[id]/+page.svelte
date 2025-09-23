@@ -5,9 +5,11 @@
 
 	let projectMembers = data?.projectMembers ?? [];
 	let availableUsers = data?.availableUsers ?? [];
+	let taskStatuses = data?.taskStatuses ?? [];
 
 	$: projectMembers = data?.projectMembers ?? [];
 	$: availableUsers = data?.availableUsers ?? [];
+	$: taskStatuses = data?.taskStatuses ?? [];
 </script>
 
 <div class="min-h-[70vh] bg-gradient-to-br from-emerald-50 via-emerald-100 to-amber-50 py-10">
@@ -151,6 +153,38 @@
 									Tambahkan
 								</button>
 							</form>
+						</div>
+					</div>
+					<div class="card border border-emerald-200/70 bg-white/90 shadow-xl backdrop-blur">
+						<div class="card-body p-6">
+							<h2 class="text-lg font-bold text-emerald-900">Task Statuses</h2>
+							<p class="text-sm text-emerald-700/70">
+								Kelola status task di proyek ini.
+							</p>
+							{#if taskStatuses.length}
+								<ul class="mt-4 space-y-3">
+									{#each taskStatuses as status (status.id)}
+										<li class="flex items-center justify-between gap-3 rounded-lg border border-emerald-100 bg-emerald-50/70 px-4 py-3">
+											<div>
+												<p class="text-sm font-semibold text-emerald-900">{status.name}</p>
+											</div>
+											<form method="POST" action="?/deleteTaskStatus" class="shrink-0">
+												<input type="hidden" name="statusId" value={status.id} />
+												<button
+													type="submit"
+													class="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50"
+												>
+													Hapus
+												</button>
+											</form>
+										</li>
+									{/each}
+								</ul>
+							{:else}
+								<div class="mt-4 rounded-lg border border-dashed border-emerald-200 bg-emerald-50/40 px-4 py-6 text-center text-sm text-emerald-700/70">
+									Belum ada status pada proyek ini.
+								</div>
+							{/if}
 						</div>
 					</div>
 				</div>

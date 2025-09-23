@@ -486,7 +486,7 @@
 			onStartEditTask={startEditTask}
 			onCancelEditTask={cancelEditTask}
 			onUpdateTask={handleUpdateTask}
-			onDeleteTask={async (taskId) => {
+			onDeleteTask={async (taskId: string) => {
 				const prev = board.tasks;
 				board.tasks = prev.filter((t) => t.id !== taskId);
 				kanbanKey += 1;
@@ -507,12 +507,12 @@
 			onStatusDragEnd={statusDragEnd}
 			onStatusDragOver={statusDragOver}
 			onStatusDrop={statusDrop}
-			onNewStatusNameChange={(value) => (newStatusName = value)}
-			onNewTaskNameChange={(value) => (newTaskName = value)}
-			onNewTaskDescriptionChange={(value) => (newTaskDescription = value)}
-			onNewTaskStatusIdChange={(value) => (newTaskStatusId = value)}
-			onEditTaskNameChange={(value) => (editTaskName = value)}
-			onEditTaskDescriptionChange={(value) => (editTaskDescription = value)}
+			onNewStatusNameChange={(value: string) => (newStatusName = value)}
+			onNewTaskNameChange={(value: string) => (newTaskName = value)}
+			onNewTaskDescriptionChange={(value: string) => (newTaskDescription = value)}
+			onNewTaskStatusIdChange={(value: string) => (newTaskStatusId = value)}
+			onEditTaskNameChange={(value: string) => (editTaskName = value)}
+			onEditTaskDescriptionChange={(value: string) => (editTaskDescription = value)}
 			showInlineCreate={true}
 			showTaskActions={true}
 			allowStatusDelete={true}

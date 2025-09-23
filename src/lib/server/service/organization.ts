@@ -1,6 +1,6 @@
 import { db } from '../db';
-import { organization, organizationMember, type Organization } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { organization, organizationMember, project, type Organization } from '../db/schema';
+import { eq, sql } from 'drizzle-orm';
 
 export const organizationService = {
 	getById: async (id: string) => {
@@ -34,5 +34,22 @@ export const organizationService = {
 	},
 	delete: async (id: string) => {
 		return await db.delete(organization).where(eq(organization.id, id));
+	},
+	getProjectCountPerOrganization: async () => {
+		const query = sql`
+			SELECT
+				o.name,
+				COUNT(p.id) as count
+			FROM
+				organization o
+			LEFT JOIN
+				project p ON o.id = p.organization_id
+			GROUP BY
+				o.name
+			ORDER BY
+				count DESC
+		`;
+		const result = await db.all(query);
+		return result as { name: string; count: number }[];
 	}
 };

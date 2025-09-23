@@ -208,7 +208,7 @@
 				class="absolute left-0 top-0 h-full w-64 max-w-[calc(100vw-2rem)] shadow-2xl bg-base-200/95 backdrop-blur supports-[backdrop-filter]:bg-base-200/80"
 			>
 				<h2 id="mobile-sidebar-title" class="sr-only">Sidebar navigation</h2>
-				<Sidebar {data} on:click={handleSidebarItemClick} />
+				<Sidebar {data} on:click={handleSidebarItemClick} on:close={() => (sidebarOpen = false)} isMobile={true} />
 			</div>
 		</div>
 	{/if}

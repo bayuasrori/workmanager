@@ -1,4 +1,4 @@
-import { projectService, organizationService, userService } from '$lib/server/service';
+import { projectService, organizationService, userService, taskStatusService } from '$lib/server/service';
 import { db } from '$lib/server/db';
 import { projectMember, user } from '$lib/server/db/schema';
 import { and, eq } from 'drizzle-orm';
@@ -19,7 +19,8 @@ export const load: PageServerLoad = async ({ params }) => {
 		.where(eq(projectMember.projectId, params.id));
 	const users = await userService.getAll();
 	const availableUsers = users.filter((u) => !projectMembers.some((pm) => pm.userId === u.id));
-	return { project, organizations, projectMembers, availableUsers };
+	const taskStatuses = await taskStatusService.getByProjectId(params.id);
+	return { project, organizations, projectMembers, availableUsers, taskStatuses };
 };
 
 export const actions: Actions = {
@@ -51,6 +52,15 @@ export const actions: Actions = {
 		await db
 			.delete(projectMember)
 			.where(and(eq(projectMember.projectId, params.id), eq(projectMember.userId, userId)));
+		return { success: true };
+	},
+	deleteTaskStatus: async ({ request }) => {
+		const data = await request.formData();
+		const statusId = data.get('statusId');
+		if (!statusId || typeof statusId !== 'string') {
+			return fail(400, { message: 'Status tidak valid.' });
+		}
+		await taskStatusService.delete(statusId);
 		return { success: true };
 	}
 };

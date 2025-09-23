@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { task, type Task } from '../db/schema';
-import { eq, and, count } from 'drizzle-orm';
+import { eq, and, count, sql } from 'drizzle-orm';
 import { activityService } from './activity';
 
 type TaskActivityOptions = {
@@ -124,5 +124,65 @@ export const taskService = {
 			where: eq(task.assigneeId, userId),
 			with: { assignee: true, status: true }
 		});
+	},
+	getTaskVelocity: async () => {
+		const query = sql`
+			SELECT
+				strftime('%Y-%m-%d', a.created_at, 'unixepoch') as date,
+				COUNT(CASE WHEN a.type = 'TASK_CREATED' THEN 1 END) as created,
+				COUNT(CASE WHEN a.type = 'TASK_STATUS_CHANGED' THEN 1 END) as completed
+			FROM
+				activity a
+			WHERE
+				a.created_at >= datetime('now', '-30 days')
+				AND a.type IN ('TASK_CREATED', 'TASK_STATUS_CHANGED')
+			GROUP BY
+				date
+			ORDER BY
+				date ASC
+		`;
+		const result = await db.all(query);
+		return result as { date: string; created: number; completed: number }[];
+	},
+	getTaskCompletionRate: async () => {
+		const query = sql`
+			SELECT
+				strftime('%Y-%m', t.start_date, 'unixepoch') as month,
+				COUNT(*) as total_tasks,
+				COUNT(CASE WHEN t.end_date IS NOT NULL THEN 1 END) as completed_tasks,
+				ROUND(COUNT(CASE WHEN t.end_date IS NOT NULL THEN 1 END) * 100.0 / COUNT(*), 2) as completion_rate
+			FROM
+				task t
+			WHERE
+				t.start_date >= datetime('now', '-12 months')
+			GROUP BY
+				month
+			ORDER BY
+				month DESC
+		`;
+		const result = await db.all(query);
+		return result as { month: string; total_tasks: number; completed_tasks: number; completion_rate: number }[];
+	},
+	getTaskStatusMetrics: async () => {
+		const query = sql`
+			SELECT
+				ts.name as status_name,
+				COUNT(t.id) as task_count,
+				AVG(CASE 
+					WHEN t.start_date IS NOT NULL AND t.end_date IS NOT NULL 
+					THEN (julianday(t.end_date) - julianday(t.start_date))
+					ELSE NULL 
+				END) as avg_completion_days
+			FROM
+				task_status ts
+			LEFT JOIN
+				task t ON ts.id = t.status_id
+			GROUP BY
+				ts.name
+			ORDER BY
+				task_count DESC
+		`;
+		const result = await db.all(query);
+		return result as { status_name: string; task_count: number; avg_completion_days: number }[];
 	}
 };

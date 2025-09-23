@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { activity, project, projectMember } from '../db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 
 export type ActivityType =
 	| 'TASK_CREATED'
@@ -71,5 +71,105 @@ export const activityService = {
 			.where(eq(projectMember.userId, userId))
 			.orderBy(desc(activity.createdAt))
 			.limit(limit);
+	},
+	getDailyActivity: async (projectId?: string) => {
+		const query = sql`
+            SELECT
+                strftime('%Y-%m-%d', created_at,'unixepoch') as date,
+                COUNT(*) as count
+            FROM
+                activity
+            WHERE
+                project_id = ${projectId}
+            GROUP BY
+                date
+            ORDER BY
+                date ASC
+        `;
+		const result = await db.all(query);
+		console.log(result)
+		return result as { date: string; count: number }[];
+	},
+	getActivityCountPerUser: async () => {
+		const query = sql`
+			SELECT
+				u.username,
+				COUNT(a.id) as count
+			FROM
+				activity a
+			JOIN
+				user u ON u.id = a.user_id
+			GROUP BY
+				u.username
+			ORDER BY
+				count DESC
+		`;
+		const result = await db.all(query);
+		return result as { username: string; count: number }[];
+	},
+	getActivityHeatmap: async () => {
+		const query = sql`
+			SELECT
+				strftime('%Y-%m-%d', created_at, 'unixepoch') as date,
+				strftime('%H', created_at, 'unixepoch') as hour,
+				COUNT(*) as count
+			FROM
+				activity
+			WHERE
+				created_at >= datetime('now', '-90 days')
+			GROUP BY
+				date, hour
+			ORDER BY
+				date ASC, hour ASC
+		`;
+		const result = await db.all(query);
+		return result as { date: string; hour: string; count: number }[];
+	},
+	getRealTimeActivityFeed: async (limit = 20) => {
+		const query = sql`
+			SELECT
+				a.id,
+				a.type,
+				a.description,
+				a.created_at,
+				u.username,
+				p.name as project_name
+			FROM
+				activity a
+			JOIN
+				user u ON a.user_id = u.id
+			JOIN
+				project p ON a.project_id = p.id
+			ORDER BY
+				a.created_at DESC
+			LIMIT ${limit}
+		`;
+		const result = await db.all(query);
+		return result as { 
+			id: string; 
+			type: string; 
+			description: string; 
+			created_at: Date;
+			username: string;
+			project_name: string;
+		}[];
+	},
+	getActivityTrends: async () => {
+		const query = sql`
+			SELECT
+				strftime('%Y-%m-%d', created_at, 'unixepoch') as date,
+				a.type,
+				COUNT(*) as count
+			FROM
+				activity a
+			WHERE
+				created_at >= datetime('now', '-30 days')
+			GROUP BY
+				date, a.type
+			ORDER BY
+				date ASC
+		`;
+		const result = await db.all(query);
+		return result as { date: string; type: string; count: number }[];
 	}
 };
