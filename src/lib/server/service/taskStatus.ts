@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { task, task_status, type TaskStatus } from '../db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, inArray } from 'drizzle-orm';
 import { activityService } from './activity';
 
 type TaskStatusActivityOptions = {
@@ -21,6 +21,12 @@ export const taskStatusService = {
 			.from(task_status)
 			.where(eq(task_status.projectId, projectId))
 			.orderBy(task_status.order);
+	},
+	getByProjectIds: async (projectIds: string[]) => {
+		if (projectIds.length === 0) {
+			return [];
+		}
+		return await db.select().from(task_status).where(inArray(task_status.projectId, projectIds));
 	},
 	create: async (item: Omit<TaskStatus, 'id'>, options?: TaskStatusActivityOptions) => {
 		const id = crypto.randomUUID();

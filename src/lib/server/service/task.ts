@@ -128,13 +128,13 @@ export const taskService = {
 	getTaskVelocity: async () => {
 		const query = sql`
 			SELECT
-				strftime('%Y-%m-%d', a.created_at, 'unixepoch') as date,
-				COUNT(CASE WHEN a.type = 'TASK_CREATED' THEN 1 END) as created,
-				COUNT(CASE WHEN a.type = 'TASK_STATUS_CHANGED' THEN 1 END) as completed
+				TO_CHAR(a.created_at, 'YYYY-MM-DD') as date,
+				COUNT(CASE WHEN a.type = 'TASK_CREATED' THEN 1 END)::int as created,
+				COUNT(CASE WHEN a.type = 'TASK_STATUS_CHANGED' THEN 1 END)::int as completed
 			FROM
 				activity a
 			WHERE
-				a.created_at >= datetime('now', '-30 days')
+				a.created_at >= NOW() - INTERVAL '30 days'
 				AND a.type IN ('TASK_CREATED', 'TASK_STATUS_CHANGED')
 			GROUP BY
 				date
@@ -147,14 +147,14 @@ export const taskService = {
 	getTaskCompletionRate: async () => {
 		const query = sql`
 			SELECT
-				strftime('%Y-%m', t.start_date, 'unixepoch') as month,
-				COUNT(*) as total_tasks,
-				COUNT(CASE WHEN t.end_date IS NOT NULL THEN 1 END) as completed_tasks,
-				ROUND(COUNT(CASE WHEN t.end_date IS NOT NULL THEN 1 END) * 100.0 / COUNT(*), 2) as completion_rate
+				TO_CHAR(t.start_date, 'YYYY-MM') as month,
+				COUNT(*)::int as total_tasks,
+				COUNT(CASE WHEN t.end_date IS NOT NULL THEN 1 END)::int as completed_tasks,
+				ROUND(COUNT(CASE WHEN t.end_date IS NOT NULL THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0), 2) as completion_rate
 			FROM
 				task t
 			WHERE
-				t.start_date >= datetime('now', '-12 months')
+				t.start_date >= NOW() - INTERVAL '12 months'
 			GROUP BY
 				month
 			ORDER BY
@@ -167,10 +167,10 @@ export const taskService = {
 		const query = sql`
 			SELECT
 				ts.name as status_name,
-				COUNT(t.id) as task_count,
+				COUNT(t.id)::int as task_count,
 				AVG(CASE 
 					WHEN t.start_date IS NOT NULL AND t.end_date IS NOT NULL 
-					THEN (julianday(t.end_date) - julianday(t.start_date))
+					THEN EXTRACT(EPOCH FROM (t.end_date - t.start_date)) / 86400.0
 					ELSE NULL 
 				END) as avg_completion_days
 			FROM

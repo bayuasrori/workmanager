@@ -1,15 +1,30 @@
 import { userService } from '$lib/server/service';
 import type { Actions, PageServerLoad } from './$types';
-import { redirect, fail } from '@sveltejs/kit';
+import { redirect, fail, error } from '@sveltejs/kit';
 import { verify, hash } from '@node-rs/argon2';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
+	const userId = locals.user?.id;
+	if (!userId) {
+		throw redirect(302, '/login');
+	}
+	if (params.id !== userId && !locals.user?.isAdmin) {
+		throw error(403, 'Forbidden');
+	}
 	const user = await userService.getById(params.id);
 	return { user };
 };
 
 export const actions: Actions = {
-	default: async ({ request, params }) => {
+	default: async ({ request, params, locals }) => {
+		const userId = locals.user?.id;
+		if (!userId) {
+			throw error(401, 'Unauthorized');
+		}
+		if (params.id !== userId && !locals.user?.isAdmin) {
+			throw error(403, 'Forbidden');
+		}
+
 		const data = await request.formData();
 		const usernameEntry = data.get('username');
 		const username = typeof usernameEntry === 'string' ? usernameEntry.trim() : '';

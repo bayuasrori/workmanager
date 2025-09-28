@@ -15,6 +15,23 @@ export const organizationMemberService = {
 			);
 		return data[0];
 	},
+	getByOrganizationId: async (organizationId: string) => {
+		return await db.query.organizationMember.findMany({
+			where: eq(organizationMember.organizationId, organizationId),
+			with: {
+				user: true
+			}
+		});
+	},
+	isMember: async (organizationId: string, userId: string) => {
+		const member = await db.query.organizationMember.findFirst({
+			where: and(
+				eq(organizationMember.organizationId, organizationId),
+				eq(organizationMember.userId, userId)
+			)
+		});
+		return !!member;
+	},
 	getAll: async () => {
 		return await db.select().from(organizationMember);
 	},

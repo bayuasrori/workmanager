@@ -9,3 +9,5 @@ export * from './taskComment';
 export * from './publicBoard';
 export * from './activity';
 export * from './userMembership';
+export * from './payment';
+export * from './paymentGateway';

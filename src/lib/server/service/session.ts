@@ -23,13 +23,13 @@ export const sessionService = {
 	getSessionDurationTrends: async () => {
 		const query = sql`
 			SELECT
-				strftime('%Y-%m-%d', s.expires_at, 'unixepoch') as date,
+				TO_CHAR(s.expires_at, 'YYYY-MM-DD') as date,
 				AVG(2.0) as avg_duration_hours,
-				COUNT(*) as session_count
+				COUNT(*)::int as session_count
 			FROM
 				session s
 			WHERE
-				s.expires_at >= datetime('now', '-30 days')
+				s.expires_at >= NOW() - INTERVAL '30 days'
 			GROUP BY
 				date
 			ORDER BY
@@ -42,15 +42,15 @@ export const sessionService = {
 		const query = sql`
 			SELECT
 				u.username,
-				COUNT(s.id) as total_sessions,
+				COUNT(s.id)::int as total_sessions,
 				AVG(2.0) as avg_session_hours,
 				MAX(s.expires_at) as last_session
 			FROM
 				session s
 			JOIN
-				user u ON s.user_id = u.id
+				"user" u ON s.user_id = u.id
 			WHERE
-				s.expires_at >= datetime('now', '-30 days')
+				s.expires_at >= NOW() - INTERVAL '30 days'
 			GROUP BY
 				u.username
 			ORDER BY
@@ -62,11 +62,11 @@ export const sessionService = {
 	getActiveSessionsCount: async () => {
 		const query = sql`
 			SELECT
-				COUNT(*) as active_sessions
+				COUNT(*)::int as active_sessions
 			FROM
 				session
 			WHERE
-				expires_at > datetime('now')
+				expires_at > NOW()
 		`;
 		const result = await db.all(query);
 		return result[0] as { active_sessions: number };

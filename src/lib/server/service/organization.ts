@@ -1,11 +1,20 @@
 import { db } from '../db';
 import { organization, organizationMember, project, type Organization } from '../db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and } from 'drizzle-orm';
 
 export const organizationService = {
 	getById: async (id: string) => {
 		const data = await db.select().from(organization).where(eq(organization.id, id));
 		return data[0];
+	},
+	isMember: async (organizationId: string, userId: string) => {
+		const member = await db
+			.select()
+			.from(organizationMember)
+			.where(
+				and(eq(organizationMember.organizationId, organizationId), eq(organizationMember.userId, userId))
+			);
+		return member.length > 0;
 	},
 	getAll: async () => {
 		return await db.select().from(organization);
@@ -39,7 +48,7 @@ export const organizationService = {
 		const query = sql`
 			SELECT
 				o.name,
-				COUNT(p.id) as count
+				COUNT(p.id)::int as count
 			FROM
 				organization o
 			LEFT JOIN

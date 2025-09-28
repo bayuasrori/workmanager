@@ -9,6 +9,17 @@ const DAY_IN_MS = 1000 * 60 * 60 * 24;
 
 export const sessionCookieName = 'auth-session';
 
+function hexToUuid(hex: string) {
+	const normalized = hex.slice(0, 32).padEnd(32, '0');
+	return [
+		normalized.slice(0, 8),
+		normalized.slice(8, 12),
+		normalized.slice(12, 16),
+		normalized.slice(16, 20),
+		normalized.slice(20)
+	].join('-');
+}
+
 export function generateSessionToken() {
 	const bytes = crypto.getRandomValues(new Uint8Array(18));
 	const token = encodeBase64url(bytes);
@@ -16,7 +27,8 @@ export function generateSessionToken() {
 }
 
 export async function createSession(token: string, userId: string) {
-	const sessionId = encodeHexLowerCase(sha256(new TextEncoder().encode(token)));
+	const sessionIdHex = encodeHexLowerCase(sha256(new TextEncoder().encode(token)));
+	const sessionId = hexToUuid(sessionIdHex);
 	const session: table.Session = {
 		id: sessionId,
 		userId,
@@ -27,7 +39,8 @@ export async function createSession(token: string, userId: string) {
 }
 
 export async function validateSessionToken(token: string) {
-	const sessionId = encodeHexLowerCase(sha256(new TextEncoder().encode(token)));
+	const sessionIdHex = encodeHexLowerCase(sha256(new TextEncoder().encode(token)));
+	const sessionId = hexToUuid(sessionIdHex);
 	const [result] = await db
 		.select({
 			// Adjust user table here to tweak returned data

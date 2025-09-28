@@ -1,9 +1,15 @@
-import { taskStatusService } from '$lib/server/service';
+import { taskStatusService, projectService } from '$lib/server/service';
 import type { Actions, PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async () => {
-	const taskStatuses = await taskStatusService.getAll();
+export const load: PageServerLoad = async ({ locals }) => {
+	const userId = locals.user?.id;
+	if (!userId) {
+		throw redirect(302, '/login');
+	}
+	const projects = await projectService.getByMemberUserId(userId);
+	const projectIds = projects.map((p) => p.id);
+	const taskStatuses = await taskStatusService.getByProjectIds(projectIds);
 	return { taskStatuses };
 };
 

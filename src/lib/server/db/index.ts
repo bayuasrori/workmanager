@@ -1,10 +1,20 @@
-import { drizzle } from 'drizzle-orm/libsql';
-import { createClient } from '@libsql/client';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import type { SQL } from 'drizzle-orm';
+import postgres from 'postgres';
 import * as schema from './schema';
 import { env } from '$env/dynamic/private';
 
-// if (!env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
+const client = postgres(env.DATABASE_URL);
 
-const client = createClient({ url: env.DATABASE_URL, authToken: env.DATABASE_AUTH_TOKEN });
+const drizzleDb = drizzle(client, { schema });
 
-export const db = drizzle(client, { schema });
+export const db = Object.assign(drizzleDb, {
+	all: async <T = unknown>(query: SQL) => {
+		const result = await drizzleDb.execute(query);
+		return result as T[];
+	},
+	get: async <T = unknown>(query: SQL) => {
+		const result = await drizzleDb.execute(query);
+		return (result[0] ?? null) as T | undefined;
+	}
+});

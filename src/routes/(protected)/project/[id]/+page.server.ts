@@ -2,12 +2,26 @@ import { projectService, organizationService, userService, taskStatusService } f
 import { db } from '$lib/server/db';
 import { projectMember, user } from '$lib/server/db/schema';
 import { and, eq } from 'drizzle-orm';
-import { fail, redirect } from '@sveltejs/kit';
+import { fail, redirect, error } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
+	const userId = locals.user?.id;
+	if (!userId) {
+		throw redirect(302, '/login');
+	}
+
 	const project = await projectService.getById(params.id);
-	const organizations = await organizationService.getAll();
+	if (!project) {
+		throw error(404, 'Project not found');
+	}
+
+	const isMember = await projectService.isMember(params.id, userId);
+	if (!isMember) {
+		throw error(403, 'You are not a member of this project');
+	}
+
+	const organizations = await organizationService.getByMemberUserId(userId);
 	const projectMembers = await db
 		.select({
 			userId: projectMember.userId,
@@ -17,6 +31,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		.from(projectMember)
 		.innerJoin(user, eq(user.id, projectMember.userId))
 		.where(eq(projectMember.projectId, params.id));
+	
 	const users = await userService.getAll();
 	const availableUsers = users.filter((u) => !projectMembers.some((pm) => pm.userId === u.id));
 	const taskStatuses = await taskStatusService.getByProjectId(params.id);

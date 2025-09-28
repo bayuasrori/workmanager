@@ -7,6 +7,13 @@ export const projectService = {
 		const data = await db.select().from(project).where(eq(project.id, id));
 		return data[0];
 	},
+	isMember: async (projectId: string, userId: string) => {
+		const member = await db
+			.select()
+			.from(projectMember)
+			.where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, userId)));
+		return member.length > 0;
+	},
 	getAll: async () => {
 		return await db.select().from(project);
 	},
@@ -69,7 +76,7 @@ export const projectService = {
 		const query = sql`
 			SELECT
 				p.name,
-				COUNT(t.id) as count
+				COUNT(t.id)::int as count
 			FROM
 				project p
 			LEFT JOIN

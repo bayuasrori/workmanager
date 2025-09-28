@@ -24,13 +24,13 @@ export const userMembershipService = {
 		const query = sql`
 			SELECT
 				mt.name as membership_type,
-				COUNT(um.id) as count
+				COUNT(um.id)::int as count
 			FROM
 				membership_type mt
 			LEFT JOIN
 				user_membership um ON mt.id = um.membership_type_id
 			WHERE
-				um.end_date IS NULL OR um.end_date > ${new Date()}
+				um.end_date IS NULL OR um.end_date > NOW()
 			GROUP BY
 				mt.name
 			ORDER BY
@@ -42,9 +42,9 @@ export const userMembershipService = {
 	getUpgradeConversions: async () => {
 		const query = sql`
 			SELECT
-				strftime('%Y-%m', um.start_date, 'unixepoch') as month,
+				TO_CHAR(um.start_date, 'YYYY-MM') as month,
 				mt.name as membership_type,
-				COUNT(um.id) as conversions
+				COUNT(um.id)::int as conversions
 			FROM
 				user_membership um
 			JOIN
@@ -60,7 +60,6 @@ export const userMembershipService = {
 		return result as { month: string; membership_type: string; conversions: number }[];
 	},
 	getChurnRisk: async () => {
-		const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 		const query = sql`
 			SELECT
 				u.id,
@@ -69,12 +68,12 @@ export const userMembershipService = {
 				mt.name as membership_type,
 				COALESCE(last_activity.last_seen, u.created_at) as last_activity_date,
 				CASE 
-					WHEN COALESCE(last_activity.last_seen, u.created_at) < ${thirtyDaysAgo} THEN 'high'
-					WHEN COALESCE(last_activity.last_seen, u.created_at) < ${new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)} THEN 'medium'
+					WHEN COALESCE(last_activity.last_seen, u.created_at) < NOW() - INTERVAL '30 days' THEN 'high'
+					WHEN COALESCE(last_activity.last_seen, u.created_at) < NOW() - INTERVAL '14 days' THEN 'medium'
 					ELSE 'low'
 				END as risk_level
 			FROM
-				user u
+				"user" u
 			LEFT JOIN
 				user_membership um ON u.id = um.user_id
 			LEFT JOIN
@@ -82,7 +81,7 @@ export const userMembershipService = {
 			LEFT JOIN
 				(SELECT user_id, MAX(created_at) as last_seen FROM activity GROUP BY user_id) last_activity ON u.id = last_activity.user_id
 			WHERE
-				(um.end_date IS NULL OR um.end_date > ${new Date()})
+				(um.end_date IS NULL OR um.end_date > NOW())
 			ORDER BY
 				last_activity_date ASC
 		`;

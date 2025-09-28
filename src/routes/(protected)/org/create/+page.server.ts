@@ -1,13 +1,8 @@
-import { organizationService, userService } from '$lib/server/service';
-import type { Actions, PageServerLoad } from './$types';
+import { organizationService } from '$lib/server/service';
+import type { Actions } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { organizationMember } from '$lib/server/db/schema';
-
-export const load: PageServerLoad = async () => {
-	const users = await userService.getAll();
-	return { users };
-};
 
 export const actions: Actions = {
 	default: async ({ request, locals }) => {

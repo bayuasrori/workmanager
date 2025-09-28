@@ -73,32 +73,30 @@ export const activityService = {
 			.limit(limit);
 	},
 	getDailyActivity: async (projectId?: string) => {
+		if (!projectId) {
+			return [];
+		}
 		const query = sql`
-            SELECT
-                strftime('%Y-%m-%d', created_at,'unixepoch') as date,
-                COUNT(*) as count
-            FROM
-                activity
-            WHERE
-                project_id = ${projectId}
-            GROUP BY
-                date
-            ORDER BY
-                date ASC
-        `;
-		const result = await db.all(query);
-		console.log(result)
-		return result as { date: string; count: number }[];
+			SELECT
+				DATE(created_at) AS date,
+				COUNT(*)::int AS count
+			FROM activity
+			WHERE project_id = ${projectId}
+			GROUP BY DATE(created_at)
+			ORDER BY DATE(created_at) ASC
+		`;
+		const result = await db.all<{ date: string; count: number }>(query);
+		return result;
 	},
 	getActivityCountPerUser: async () => {
 		const query = sql`
 			SELECT
 				u.username,
-				COUNT(a.id) as count
+				COUNT(a.id)::int as count
 			FROM
 				activity a
 			JOIN
-				user u ON u.id = a.user_id
+				"user" u ON u.id = a.user_id
 			GROUP BY
 				u.username
 			ORDER BY
@@ -110,13 +108,13 @@ export const activityService = {
 	getActivityHeatmap: async () => {
 		const query = sql`
 			SELECT
-				strftime('%Y-%m-%d', created_at, 'unixepoch') as date,
-				strftime('%H', created_at, 'unixepoch') as hour,
-				COUNT(*) as count
+				TO_CHAR(created_at, 'YYYY-MM-DD') as date,
+				TO_CHAR(created_at, 'HH24') as hour,
+				COUNT(*)::int as count
 			FROM
 				activity
 			WHERE
-				created_at >= datetime('now', '-90 days')
+				created_at >= NOW() - INTERVAL '90 days'
 			GROUP BY
 				date, hour
 			ORDER BY
@@ -137,7 +135,7 @@ export const activityService = {
 			FROM
 				activity a
 			JOIN
-				user u ON a.user_id = u.id
+				"user" u ON a.user_id = u.id
 			JOIN
 				project p ON a.project_id = p.id
 			ORDER BY
@@ -157,13 +155,13 @@ export const activityService = {
 	getActivityTrends: async () => {
 		const query = sql`
 			SELECT
-				strftime('%Y-%m-%d', created_at, 'unixepoch') as date,
+				TO_CHAR(created_at, 'YYYY-MM-DD') as date,
 				a.type,
-				COUNT(*) as count
+				COUNT(*)::int as count
 			FROM
 				activity a
 			WHERE
-				created_at >= datetime('now', '-30 days')
+				created_at >= NOW() - INTERVAL '30 days'
 			GROUP BY
 				date, a.type
 			ORDER BY

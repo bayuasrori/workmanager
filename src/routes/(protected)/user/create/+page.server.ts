@@ -1,10 +1,22 @@
 import { userService } from '$lib/server/service';
 import { hash } from '@node-rs/argon2';
-import type { Actions } from './$types';
-import { redirect, fail } from '@sveltejs/kit';
+import type { Actions, PageServerLoad } from './$types';
+import { redirect, fail, error } from '@sveltejs/kit';
+
+export const load: PageServerLoad = async ({ locals }) => {
+	if (!locals.user) {
+		throw redirect(302, '/login');
+	}
+	if (!locals.user.isAdmin) {
+		throw error(403, 'Forbidden');
+	}
+};
 
 export const actions: Actions = {
-	default: async ({ request }) => {
+	default: async ({ request, locals }) => {
+		if (!locals.user?.isAdmin) {
+			throw error(403, 'Forbidden');
+		}
 		const data = await request.formData();
 		const usernameEntry = data.get('username');
 		const username = typeof usernameEntry === 'string' ? usernameEntry.trim() : '';

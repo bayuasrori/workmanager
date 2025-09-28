@@ -1,8 +1,12 @@
 import { taskService } from '$lib/server/service';
+import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
-	const tasks = await taskService.getAll();
+export const load: PageServerLoad = async ({ locals }) => {
+	if (!locals.user) {
+		throw redirect(302, '/login');
+	}
+	const tasks = await taskService.getUserTasks(locals.user.id);
 	return { tasks };
 };
 

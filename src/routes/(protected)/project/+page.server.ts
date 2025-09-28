@@ -1,4 +1,4 @@
-import { projectService } from '$lib/server/service';
+import { projectService, organizationService } from '$lib/server/service';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -8,9 +8,26 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	delete: async ({ url }) => {
+	delete: async ({ url, locals }) => {
 		const id = url.searchParams.get('id');
 		if (!id) return { success: false };
+
+		const userId = locals.user?.id;
+		if (!userId) return { success: false };
+
+		const project = await projectService.getById(id);
+		if (!project) return { success: false };
+
+		if (project.organizationId) {
+			const organization = await organizationService.getById(project.organizationId);
+			if (!organization) return { success: false };
+
+			if (organization.ownerId !== userId) {
+				const isMember = await organizationService.isMember(project.organizationId, userId);
+				if (!isMember) return { success: false };
+			}
+		}
+
 		await projectService.delete(id);
 		return { success: true };
 	}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
+	import { browser } from '$app/environment';
 
 	export let data;
 	let mobileOpen = false;
@@ -148,7 +149,7 @@
 				>
 			</button>
 		</div>
-		{#if mobileOpen}
+		{#if browser && mobileOpen}
 			<div
 				id="mobile-nav"
 				class="lg:hidden absolute right-2 top-full mt-2 w-64 max-w-[calc(100vw-1.5rem)] rounded-xl shadow-xl border border-base-300 bg-base-100/90 backdrop-blur supports-[backdrop-filter]:bg-base-100/80 z-50"
