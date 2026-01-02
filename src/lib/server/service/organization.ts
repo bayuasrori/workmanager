@@ -1,64 +1,29 @@
-import { db } from '../db';
-import { organization, organizationMember, project, type Organization } from '../db/schema';
-import { eq, sql, and } from 'drizzle-orm';
+import { organizationRepository } from '../repositories';
+import { type Organization } from '../db/schema';
 
 export const organizationService = {
 	getById: async (id: string) => {
-		const data = await db.select().from(organization).where(eq(organization.id, id));
-		return data[0];
+		return await organizationRepository.getById(id);
 	},
 	isMember: async (organizationId: string, userId: string) => {
-		const member = await db
-			.select()
-			.from(organizationMember)
-			.where(
-				and(eq(organizationMember.organizationId, organizationId), eq(organizationMember.userId, userId))
-			);
-		return member.length > 0;
+		return await organizationRepository.isMember(organizationId, userId);
 	},
 	getAll: async () => {
-		return await db.select().from(organization);
+		return await organizationRepository.getAll();
 	},
 	getByMemberUserId: async (userId: string) => {
-		return await db
-			.select({
-				id: organization.id,
-				name: organization.name,
-				ownerId: organization.ownerId
-			})
-			.from(organization)
-			.innerJoin(organizationMember, eq(organizationMember.organizationId, organization.id))
-			.where(eq(organizationMember.userId, userId));
+		return await organizationRepository.getByMemberUserId(userId);
 	},
 	create: async (item: Omit<Organization, 'id'>) => {
-		const id = crypto.randomUUID();
-		const inserted = await db
-			.insert(organization)
-			.values({ ...item, id })
-			.returning();
-		return inserted[0];
+		return await organizationRepository.create(item);
 	},
 	update: async (id: string, item: Partial<Omit<Organization, 'id'>>) => {
-		return await db.update(organization).set(item).where(eq(organization.id, id));
+		return await organizationRepository.update(id, item);
 	},
 	delete: async (id: string) => {
-		return await db.delete(organization).where(eq(organization.id, id));
+		return await organizationRepository.delete(id);
 	},
 	getProjectCountPerOrganization: async () => {
-		const query = sql`
-			SELECT
-				o.name,
-				COUNT(p.id)::int as count
-			FROM
-				organization o
-			LEFT JOIN
-				project p ON o.id = p.organization_id
-			GROUP BY
-				o.name
-			ORDER BY
-				count DESC
-		`;
-		const result = await db.all(query);
-		return result as { name: string; count: number }[];
+		return await organizationRepository.getProjectCountPerOrganization();
 	}
 };

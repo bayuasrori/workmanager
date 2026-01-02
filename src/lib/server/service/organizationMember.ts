@@ -1,51 +1,22 @@
-import { db } from '../db';
-import { organizationMember, type OrganizationMember } from '../db/schema';
-import { and, eq } from 'drizzle-orm';
+import { organizationMemberRepository } from '../repositories';
 
 export const organizationMemberService = {
 	get: async (organizationId: string, userId: string) => {
-		const data = await db
-			.select()
-			.from(organizationMember)
-			.where(
-				and(
-					eq(organizationMember.organizationId, organizationId),
-					eq(organizationMember.userId, userId)
-				)
-			);
-		return data[0];
+		return await organizationMemberRepository.get(organizationId, userId);
 	},
 	getByOrganizationId: async (organizationId: string) => {
-		return await db.query.organizationMember.findMany({
-			where: eq(organizationMember.organizationId, organizationId),
-			with: {
-				user: true
-			}
-		});
+		return await organizationMemberRepository.getByOrganizationId(organizationId);
 	},
 	isMember: async (organizationId: string, userId: string) => {
-		const member = await db.query.organizationMember.findFirst({
-			where: and(
-				eq(organizationMember.organizationId, organizationId),
-				eq(organizationMember.userId, userId)
-			)
-		});
-		return !!member;
+		return await organizationMemberRepository.isMember(organizationId, userId);
 	},
 	getAll: async () => {
-		return await db.select().from(organizationMember);
+		return await organizationMemberRepository.getAll();
 	},
-	create: async (item: OrganizationMember) => {
-		return await db.insert(organizationMember).values(item);
+	create: async (item: { organizationId: string; userId: string }) => {
+		return await organizationMemberRepository.create(item);
 	},
 	delete: async (organizationId: string, userId: string) => {
-		return await db
-			.delete(organizationMember)
-			.where(
-				and(
-					eq(organizationMember.organizationId, organizationId),
-					eq(organizationMember.userId, userId)
-				)
-			);
+		return await organizationMemberRepository.delete(organizationId, userId);
 	}
 };

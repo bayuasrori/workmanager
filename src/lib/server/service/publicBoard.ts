@@ -1,6 +1,5 @@
-import { db } from '../db';
-import { project, task, task_status, organization, type Project, type Task } from '../db/schema';
-import { eq, and } from 'drizzle-orm';
+import { projectRepository, taskRepository, taskStatusRepository, organizationRepository } from '../repositories';
+import { type Project, type Task } from '../db/schema';
 
 // Helper function to generate a URL-friendly slug
 function generateSlug(name: string): string {
@@ -16,9 +15,8 @@ async function ensureUniqueSlug(baseSlug: string): Promise<string> {
 	let counter = 1;
 
 	while (true) {
-		const existing = await db.query.project.findFirst({
-			where: eq(project.slug, slug)
-		});
+		const allProjects = await projectRepository.getAll();
+		const existing = allProjects.find(p => p.slug === slug);
 
 		if (!existing) {
 			return slug;
@@ -31,21 +29,14 @@ async function ensureUniqueSlug(baseSlug: string): Promise<string> {
 
 // Get or create the public organization
 async function getPublicOrganization() {
-	let publicOrg = await db.query.organization.findFirst({
-		where: eq(organization.name, 'Public')
-	});
+	const allOrgs = await organizationRepository.getAll();
+	let publicOrg = allOrgs.find(o => o.name === 'Public');
 
 	if (!publicOrg) {
-		const id = crypto.randomUUID();
-		const result = await db
-			.insert(organization)
-			.values({
-				id,
-				name: 'Public',
-				ownerId: null
-			})
-			.returning();
-		publicOrg = result[0];
+		publicOrg = await organizationRepository.create({
+			name: 'Public',
+			ownerId: null
+		});
 	}
 
 	return publicOrg;
@@ -53,20 +44,15 @@ async function getPublicOrganization() {
 
 export const publicBoardService = {
 	getById: async (id: string) => {
-		// First get the project
-		const projectData = await db.query.project.findFirst({
-			where: and(eq(project.id, id), eq(project.isPublic, true))
-		});
+		// Get the project
+		const projectData = await projectRepository.getById(id);
 
-		if (!projectData) {
+		if (!projectData || !projectData.isPublic) {
 			return null;
 		}
 
-		// Then get the tasks separately
-		const tasks = await db.query.task.findMany({
-			where: eq(task.projectId, projectData.id),
-			with: { status: true, assignee: true }
-		});
+		// Get the tasks
+		const tasks = await taskRepository.getByProjectId(projectData.id);
 
 		return {
 			...projectData,
@@ -75,26 +61,19 @@ export const publicBoardService = {
 	},
 
 	getBySlug: async (slug: string) => {
-		// First get the project
-		const projectData = await db.query.project.findFirst({
-			where: and(eq(project.slug, slug), eq(project.isPublic, true))
-		});
+		// Get the project by checking all projects (since slug is unique)
+		const allProjects = await projectRepository.getAll();
+		const projectData = allProjects.find(p => p.slug === slug && p.isPublic);
 
 		if (!projectData) {
 			return null;
 		}
 
 		// Get the tasks
-		const tasks = await db.query.task.findMany({
-			where: eq(task.projectId, projectData.id),
-			with: { status: true, assignee: true }
-		});
+		const tasks = await taskRepository.getByProjectId(projectData.id);
 
 		// Get the task statuses for this project
-		const taskStatuses = await db.query.task_status.findMany({
-			where: eq(task_status.projectId, projectData.id),
-			orderBy: (task_status, { asc }) => [asc(task_status.order)]
-		});
+		const taskStatuses = await taskStatusRepository.getByProjectId(projectData.id);
 
 		return {
 			...projectData,
@@ -104,18 +83,13 @@ export const publicBoardService = {
 	},
 
 	getAll: async () => {
-		const projects = await db.query.project.findMany({
-			where: eq(project.isPublic, true),
-			orderBy: (project, { desc }) => [desc(project.id)] // Using id as proxy for creation order
-		});
+		const projects = await projectRepository.getAll();
+		const publicProjects = projects.filter(p => p.isPublic);
 
 		// Get tasks for each project
 		const projectsWithTasks = await Promise.all(
-			projects.map(async (project) => {
-				const tasks = await db.query.task.findMany({
-					where: eq(task.projectId, project.id),
-					with: { status: true, assignee: true }
-				});
+			publicProjects.map(async (project) => {
+				const tasks = await taskRepository.getByProjectId(project.id);
 				return {
 					...project,
 					tasks
@@ -128,45 +102,33 @@ export const publicBoardService = {
 
 	create: async (item: { name: string; description?: string; createdBy?: string }) => {
 		const publicOrg = await getPublicOrganization();
-		const id = crypto.randomUUID();
 		const baseSlug = generateSlug(item.name);
 		const slug = await ensureUniqueSlug(baseSlug);
 
-		const result = await db
-			.insert(project)
-			.values({
-				id,
-				name: item.name,
-				description: item.description || null,
-				slug,
-				organizationId: publicOrg!.id,
-				isPublic: true
-			})
-			.returning();
-
-		const createdProject = result[0];
+		const createdProject = await projectRepository.create({
+			name: item.name,
+			description: item.description || null,
+			slug,
+			organizationId: publicOrg!.id,
+			isPublic: true
+		});
 
 		// Create default task statuses for this project
-		await db.insert(task_status).values([
-			{
-				id: crypto.randomUUID(),
-				name: 'To Do',
-				order: 1,
-				projectId: createdProject.id
-			},
-			{
-				id: crypto.randomUUID(),
-				name: 'In Progress',
-				order: 2,
-				projectId: createdProject.id
-			},
-			{
-				id: crypto.randomUUID(),
-				name: 'Done',
-				order: 3,
-				projectId: createdProject.id
-			}
-		]);
+		await taskStatusRepository.create({
+			name: 'To Do',
+			order: 1,
+			projectId: createdProject.id
+		});
+		await taskStatusRepository.create({
+			name: 'In Progress',
+			order: 2,
+			projectId: createdProject.id
+		});
+		await taskStatusRepository.create({
+			name: 'Done',
+			order: 3,
+			projectId: createdProject.id
+		});
 
 		return createdProject;
 	},
@@ -175,17 +137,21 @@ export const publicBoardService = {
 		id: string,
 		item: Partial<Omit<Project, 'id' | 'organizationId' | 'isPublic'>>
 	) => {
-		return await db
-			.update(project)
-			.set(item)
-			.where(and(eq(project.id, id), eq(project.isPublic, true)));
+		const projectData = await projectRepository.getById(id);
+		if (!projectData || !projectData.isPublic) {
+			return null;
+		}
+		return await projectRepository.update(id, item);
 	},
 
 	delete: async (id: string) => {
 		// First delete all tasks associated with the project
-		await db.delete(task).where(eq(task.projectId, id));
+		const tasks = await taskRepository.getByProjectId(id);
+		for (const task of tasks) {
+			await taskRepository.delete(task.id);
+		}
 		// Then delete the project
-		return await db.delete(project).where(and(eq(project.id, id), eq(project.isPublic, true)));
+		return await projectRepository.delete(id);
 	},
 
 	// Task management for public boards
@@ -193,13 +159,8 @@ export const publicBoardService = {
 		projectId: string,
 		taskData: { name: string; description?: string; statusId?: string }
 	) => {
-		const id = crypto.randomUUID();
-
 		// Get statuses for the project
-		const statuses = await db.query.task_status.findMany({
-			where: eq(task_status.projectId, projectId),
-			orderBy: (task_status, { asc }) => [asc(task_status.order)]
-		});
+		const statuses = await taskStatusRepository.getByProjectId(projectId);
 
 		if (statuses.length === 0) {
 			throw new Error('No task statuses found for this project');
@@ -207,49 +168,44 @@ export const publicBoardService = {
 
 		const statusId = taskData.statusId || statuses[0].id; // Default to first status (To Do)
 
-		const inserted = await db
-			.insert(task)
-			.values({
-				id,
-				name: taskData.name,
-				description: taskData.description || null,
-				projectId,
-				statusId,
-				assigneeId: null
-			})
-			.returning();
+		const inserted = await taskRepository.create({
+			name: taskData.name,
+			description: taskData.description || null,
+			projectId,
+			statusId,
+			assigneeId: null,
+			startDate: null,
+			endDate: null
+		});
 		return inserted[0];
 	},
 
 	updateTask: async (taskId: string, taskData: Partial<Omit<Task, 'id' | 'projectId'>>) => {
-		return await db.update(task).set(taskData).where(eq(task.id, taskId));
+		const updatedRows = await taskRepository.update(taskId, taskData);
+		return updatedRows[0];
 	},
 
 	deleteTask: async (taskId: string) => {
-		return await db.delete(task).where(eq(task.id, taskId));
+		return await taskRepository.delete(taskId);
 	},
 
 	deleteTasksByStatus: async (projectId: string, statusId: string) => {
-		return await db
-			.delete(task)
-			.where(and(eq(task.projectId, projectId), eq(task.statusId, statusId)));
+		const tasks = await taskRepository.getByProjectIdAndStatus(projectId, statusId);
+		for (const task of tasks) {
+			await taskRepository.delete(task.id);
+		}
 	},
 
 	getTasksByProjectId: async (projectId: string) => {
-		return await db.query.task.findMany({
-			where: eq(task.projectId, projectId),
-			with: { status: true, assignee: true }
-		});
+		return await taskRepository.getByProjectId(projectId);
 	},
 
 	getTaskById: async (taskId: string) => {
-		return await db.query.task.findFirst({
-			where: eq(task.id, taskId),
-			with: { status: true, assignee: true }
-		});
+		return await taskRepository.getById(taskId);
 	},
 
 	updateTaskStatus: async (taskId: string, newStatusId: string) => {
-		return await db.update(task).set({ statusId: newStatusId }).where(eq(task.id, taskId));
+		const updatedRows = await taskRepository.update(taskId, { statusId: newStatusId });
+		return updatedRows[0];
 	}
 };

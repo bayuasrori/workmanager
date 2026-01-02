@@ -1,74 +1,29 @@
-import { db } from '../db';
-import { session, type Session } from '../db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { sessionRepository } from '../repositories';
+import { type Session } from '../db/schema';
 
 export const sessionService = {
 	getById: async (id: string) => {
-		const data = await db.select().from(session).where(eq(session.id, id));
-		return data[0];
+		return await sessionRepository.getById(id);
 	},
 	getAll: async () => {
-		return await db.select().from(session);
+		return await sessionRepository.getAll();
 	},
 	create: async (item: Omit<Session, 'id'>) => {
-		const id = crypto.randomUUID();
-		return await db.insert(session).values({ ...item, id });
+		return await sessionRepository.create(item);
 	},
 	update: async (id: string, item: Partial<Omit<Session, 'id'>>) => {
-		return await db.update(session).set(item).where(eq(session.id, id));
+		return await sessionRepository.update(id, item);
 	},
 	delete: async (id: string) => {
-		return await db.delete(session).where(eq(session.id, id));
+		return await sessionRepository.delete(id);
 	},
 	getSessionDurationTrends: async () => {
-		const query = sql`
-			SELECT
-				TO_CHAR(s.expires_at, 'YYYY-MM-DD') as date,
-				AVG(2.0) as avg_duration_hours,
-				COUNT(*)::int as session_count
-			FROM
-				session s
-			WHERE
-				s.expires_at >= NOW() - INTERVAL '30 days'
-			GROUP BY
-				date
-			ORDER BY
-				date ASC
-		`;
-		const result = await db.all(query);
-		return result as { date: string; avg_duration_hours: number; session_count: number }[];
+		return await sessionRepository.getSessionDurationTrends();
 	},
 	getUserEngagementMetrics: async () => {
-		const query = sql`
-			SELECT
-				u.username,
-				COUNT(s.id)::int as total_sessions,
-				AVG(2.0) as avg_session_hours,
-				MAX(s.expires_at) as last_session
-			FROM
-				session s
-			JOIN
-				"user" u ON s.user_id = u.id
-			WHERE
-				s.expires_at >= NOW() - INTERVAL '30 days'
-			GROUP BY
-				u.username
-			ORDER BY
-				total_sessions DESC
-		`;
-		const result = await db.all(query);
-		return result as { username: string; total_sessions: number; avg_session_hours: number; last_session: Date }[];
+		return await sessionRepository.getUserEngagementMetrics();
 	},
 	getActiveSessionsCount: async () => {
-		const query = sql`
-			SELECT
-				COUNT(*)::int as active_sessions
-			FROM
-				session
-			WHERE
-				expires_at > NOW()
-		`;
-		const result = await db.all(query);
-		return result[0] as { active_sessions: number };
+		return await sessionRepository.getActiveSessionsCount();
 	}
 };

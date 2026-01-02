@@ -1,46 +1,46 @@
 <script lang="ts">
 	import KanbanBoard from '$lib/components/KanbanBoard.svelte';
 	import type { PageData } from './$types';
+	import {
+		getProjectTasks,
+		updateTaskStatus,
+		createStatus,
+		reorderStatuses,
+		deleteProject,
+		deleteTaskStatus,
+		createTask,
+		updateTask,
+		deleteTask
+	} from './data.remote';
 
 	const STATUS_DRAG_TYPE = 'application/task-status-id';
 	const TASK_DRAG_TYPE = 'application/task-id';
 
-	type ProjectTask = PageData['tasks'][number];
-	type UpdateTaskResponse = {
-		success?: boolean;
-		task?: Partial<ProjectTask> & { id: string };
-	};
+	let { data }: { data: PageData } = $props();
 
-	export let data: PageData;
+	// Reactive state
+	let project = $state(data.project);
+	let taskStatuses = $state(data.taskStatuses);
+	let tasks = $state(data.tasks);
+	let kanbanKey = $state(0);
 
-	let showCreateStatus = false;
-	let newStatusName = '';
-	let kanbanKey = 0;
-	let showCreateTask = false;
-	let newTaskName = '';
-	let newTaskDescription = '';
-	let newTaskStatusId = '';
-	let creatingStatusId = '';
-	let statusDragSourceId: string | null = null;
-	let isCreatingTask = false;
-	let editingTaskId: string | null = null;
-	let editTaskName = '';
-	let editTaskDescription = '';
-	let taskStatuses = [...data.taskStatuses];
-	let tasks = [...data.tasks];
+	// Form states
+	let showCreateStatus = $state(false);
+	let newStatusName = $state('');
+	let showCreateTask = $state(false);
+	let newTaskName = $state('');
+	let newTaskDescription = $state('');
+	let newTaskStatusId = $state<string>('');
+	let creatingStatusId = $state('');
+	let statusDragSourceId: string | null = $state(null);
 
-	let previousTaskStatuses = data.taskStatuses;
-	let previousTasks = data.tasks;
+	// Edit task states
+	let editingTaskId: string | null = $state(null);
+	let editTaskName = $state('');
+	let editTaskDescription = $state('');
 
-	$: if (data.taskStatuses !== previousTaskStatuses) {
-		previousTaskStatuses = data.taskStatuses;
-		taskStatuses = [...data.taskStatuses];
-	}
-
-	$: if (data.tasks !== previousTasks) {
-		previousTasks = data.tasks;
-		tasks = [...data.tasks];
-	}
+	// Loading states
+	let isCreatingTask = $state(false);
 
 	function confirmAndDelete() {
 		if (
@@ -48,11 +48,20 @@
 				'Are you sure you want to delete this project? This will permanently delete all tasks and statuses.'
 			)
 		) {
-			const form = document.createElement('form');
-			form.method = 'POST';
-			form.action = '?/deleteProject';
-			document.body.appendChild(form);
-			form.submit();
+			handleDeleteProject();
+		}
+	}
+
+	async function handleDeleteProject() {
+		try {
+			await deleteProject({
+				projectId: project.id,
+				organizationId: project.organizationId ?? undefined
+			});
+			window.location.href = '/project';
+		} catch (error) {
+			console.error('Failed to delete project', error);
+			alert('Gagal menghapus proyek. Silakan coba lagi.');
 		}
 	}
 
@@ -91,6 +100,7 @@
 		}
 		const taskId = transfer?.getData(TASK_DRAG_TYPE) || transfer?.getData('text/plain');
 		if (taskId) {
+			// Optimistically update the task status
 			const taskIndex = tasks.findIndex((t) => t.id === taskId);
 			let oldStatusId: string | null | undefined;
 			if (taskIndex !== -1) {
@@ -100,19 +110,19 @@
 				kanbanKey += 1;
 			}
 
-			const formData = new FormData();
-			formData.append('taskId', taskId);
-			formData.append('newStatusId', newStatusId);
-
-			const response = await fetch('?/updateTaskStatus', {
-				method: 'POST',
-				body: formData
-			});
-
-			if (!response.ok && taskIndex !== -1 && oldStatusId != null) {
-				tasks[taskIndex] = { ...tasks[taskIndex], statusId: oldStatusId };
-				tasks = [...tasks];
-				kanbanKey += 1;
+			try {
+				// Use remote function to update task status
+				await updateTaskStatus({
+					taskId,
+					newStatusId
+				});
+			} catch {
+				// If request failed, revert the optimistic update
+				if (taskIndex !== -1 && oldStatusId != null) {
+					tasks[taskIndex] = { ...tasks[taskIndex], statusId: oldStatusId };
+					tasks = [...tasks];
+					kanbanKey += 1;
+				}
 			}
 		}
 	}
@@ -156,31 +166,21 @@
 		const currentStatuses = [...taskStatuses];
 		const fromIndex = currentStatuses.findIndex((status) => status.id === draggedId);
 		const toIndex = currentStatuses.findIndex((status) => status.id === targetStatusId);
-		if (fromIndex === -1 || toIndex === -1) {
-			return;
-		}
+		if (fromIndex === -1 || toIndex === -1) return;
+
 		const previous = [...currentStatuses];
 		const [moved] = currentStatuses.splice(fromIndex, 1);
 		currentStatuses.splice(toIndex, 0, moved);
 		taskStatuses = currentStatuses;
 		statusDragEnd();
-		try {
-			const formData = new FormData();
-			formData.append('orderedIds', JSON.stringify(currentStatuses.map((status) => status.id)));
-			const response = await fetch('?/reorderStatuses', {
-				method: 'POST',
-				body: formData
-			});
-			// let id = data.project.id
-			// const responseTasks = await fetch(`/project/${id}/tasks/task-status`);
-			// const result = await responseTasks.json();
 
-			// taskStatuses = result;
-			if (!response.ok) {
-				throw new Error('Failed to persist status order');
-			}
-		} catch (error) {
-			console.error('Failed to reorder statuses', error);
+		try {
+			await reorderStatuses({
+				projectId: project.id,
+				orderedIds: currentStatuses.map((s) => s.id)
+			});
+		} catch {
+			// Revert on error
 			taskStatuses = previous;
 		}
 	}
@@ -189,32 +189,22 @@
 		const trimmedName = newStatusName.trim();
 		if (!trimmedName) return;
 
-		const formData = new FormData();
-		formData.append('name', trimmedName);
-
 		try {
-			const response = await fetch('?/createStatus', {
-				method: 'POST',
-				body: formData
+			const createdStatus = await createStatus({
+				projectId: project.id,
+				name: trimmedName
 			});
 
-			if (!response.ok) {
-				throw new Error(`Failed to create status (${response.status})`);
-			}
-
-			const result = await response.json().catch(() => null);
-			const createdStatus = result?.status;
-			if (createdStatus) {
-				const updatedStatuses = [...taskStatuses, createdStatus];
-				updatedStatuses.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-				taskStatuses = updatedStatuses;
-				kanbanKey += 1;
-				newStatusName = '';
-				showCreateStatus = false;
-				statusDragSourceId = null;
-			}
+			const updatedStatuses = [...taskStatuses, createdStatus];
+			updatedStatuses.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+			taskStatuses = updatedStatuses;
+			kanbanKey += 1;
+			newStatusName = '';
+			showCreateStatus = false;
+			statusDragSourceId = null;
 		} catch (error) {
 			console.error('Failed to create status', error);
+			alert('Gagal membuat status. Silakan coba lagi.');
 		}
 	}
 
@@ -225,26 +215,25 @@
 		const nameToSend = newTaskName.trim();
 		const descToSend = newTaskDescription.trim();
 
-		const formData = new FormData();
-		formData.append('name', nameToSend);
-		formData.append('description', descToSend);
-		formData.append('statusId', statusToUse);
-		const projectId = data.project?.id ?? tasks[0]?.projectId ?? '';
-		formData.append('projectId', projectId);
-
 		isCreatingTask = true;
 
 		try {
-			const response = await fetch('/tasks/create', {
-				method: 'POST',
-				body: formData
+			await createTask({
+				projectId: project.id,
+				name: nameToSend,
+				description: descToSend || undefined,
+				statusId: statusToUse || undefined
 			});
 
-			if (response.ok) {
-				window.location.reload();
-			}
+			// Refresh data to get new task
+			const result = await getProjectTasks({ projectId: project.id });
+			tasks = result.tasks;
+			taskStatuses = result.taskStatuses;
+			kanbanKey += 1;
+			cancelCreateTask();
 		} catch (error) {
 			console.error('Failed to create task', error);
+			alert('Gagal membuat tugas. Silakan coba lagi.');
 		} finally {
 			isCreatingTask = false;
 		}
@@ -276,91 +265,99 @@
 
 	async function handleUpdateTask(taskId: string) {
 		if (!editTaskName.trim()) return;
-		const formData = new FormData();
-		formData.append('taskId', taskId);
-		formData.append('name', editTaskName.trim());
-		formData.append('description', editTaskDescription.trim());
-		const response = await fetch(`/tasks/${taskId}`, {
-			method: 'POST',
-			body: formData
-		});
-		if (response.ok) {
-			const result = (await response.json()) as UpdateTaskResponse;
-			if (result?.task) {
-				const idx = tasks.findIndex((t) => t.id === taskId);
-				if (idx !== -1) {
-					tasks[idx] = { ...tasks[idx], ...result.task };
-					tasks = [...tasks];
-				}
-			}
+
+		try {
+			await updateTask({
+				taskId,
+				name: editTaskName.trim(),
+				description: editTaskDescription.trim() || undefined
+			});
+
+			// Refresh data to get updated task
+			const result = await getProjectTasks({ projectId: project.id });
+			tasks = result.tasks;
+			taskStatuses = result.taskStatuses;
+			kanbanKey += 1;
 			cancelEditTask();
+		} catch (error) {
+			console.error('Failed to update task', error);
+			alert('Gagal memperbarui tugas. Silakan coba lagi.');
 		}
 	}
 
 	async function handleDeleteTask(taskId: string) {
-		const prev = tasks;
+		const task = tasks.find((t) => t.id === taskId);
+		if (!task) return;
+
+		if (!confirm(`Hapus tugas "${task.name}"? Ini tidak bisa dibatalkan.`)) return;
+
+		const prev = [...tasks];
 		tasks = prev.filter((t) => t.id !== taskId);
+		tasks = [...tasks];
 		kanbanKey += 1;
-		const formData = new FormData();
-		formData.append('taskId', taskId);
-		const res = await fetch(`/tasks/${taskId}`, { method: 'DELETE', body: formData });
-		if (!res.ok) {
+
+		try {
+			await deleteTask({ taskId });
+		} catch (error) {
+			console.error('Failed to delete task', error);
+			alert('Gagal menghapus tugas. Silakan coba lagi.');
 			tasks = prev;
+			tasks = [...tasks];
 			kanbanKey += 1;
 		}
 	}
 
 	async function handleDeleteStatus(statusId: string) {
-		if (!confirm('Are you sure you want to delete this status? This cannot be undone.')) return;
+		const status = taskStatuses.find((s) => s.id === statusId);
+		if (!status) return;
 
-		const formData = new FormData();
-		formData.append('statusId', statusId);
+		if (!confirm(`Hapus status "${status.name}"? Tugas dengan status ini tidak akan dihapus.`)) return;
 
-		const response = await fetch('?/deleteTaskStatus', {
-			method: 'POST',
-			body: formData
-		});
-
-		if (response.ok) {
+		try {
+			await deleteTaskStatus({ statusId });
 			taskStatuses = taskStatuses.filter((s) => s.id !== statusId);
 			kanbanKey += 1;
+		} catch (error) {
+			console.error('Failed to delete status', error);
+			alert('Gagal menghapus status. Silakan coba lagi.');
 		}
 	}
 </script>
 
-<div class="min-h-screen bg-base-100 py-8">
+<div class="min-h-[calc(100vh-4rem)] bg-base-100 py-8">
 	<div class="container mx-auto px-4">
 		<!-- Project Header -->
 		<div class="mb-6">
-			<h1 class="text-3xl font-bold text-base-content mb-2">Tasks for Project <a
-				href={data.project ? `/project/${data.project.id}` : '/project'}
-				class="btn btn-outline btn-sm"
-			>
-				Lihat Info Proyek
-			</a></h1>
-			{#if data.project?.description}
-				<p class="text-base-content/70 mb-2">{data.project.description}</p>
+			<h1 class="text-3xl font-bold text-base-content mb-2">
+				Tugas untuk Proyek
+				<a
+					href={project ? `/project/${project.id}` : '/project'}
+					class="btn btn-outline btn-sm ml-2"
+				>
+					Lihat Info Proyek
+				</a>
+			</h1>
+			{#if project?.description}
+				<p class="text-base-content/70 mb-2">{project.description}</p>
 			{/if}
 			<div class="flex items-center gap-4 text-sm text-base-content/60">
-				<span>Project Board</span>
+				<span>Papan Proyek</span>
 				<span>•</span>
-				<span>{tasks.length} tasks</span>
+				<span>{tasks.length} tugas</span>
 			</div>
 			<div class="flex flex-wrap gap-2 mt-4">
-
-
 				<button
 					class="btn btn-secondary btn-sm"
 					onclick={() => (showCreateStatus = !showCreateStatus)}
 				>
-					Add Status Column
+					Tambah Kolom Status
 				</button>
-				<button class="btn btn-error btn-sm" onclick={confirmAndDelete}> Delete Project </button>
+				<button class="btn btn-error btn-sm" onclick={confirmAndDelete}> Hapus Proyek </button>
 			</div>
 		</div>
 
 		<KanbanBoard
-			tasks={tasks}
+			{tasks}
 			{taskStatuses}
 			{kanbanKey}
 			{showCreateTask}

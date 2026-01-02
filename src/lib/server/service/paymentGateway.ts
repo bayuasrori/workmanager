@@ -1,133 +1,47 @@
-import { db } from '../db';
-import {
-	payment,
-	paymentGateway,
-	paymentGatewayStatusEnum,
-	type PaymentGateway as PaymentGatewayRecord
-} from '../db/schema';
-import { desc, eq, sql } from 'drizzle-orm';
+import { paymentGatewayRepository } from '../repositories';
+import type { PaymentGateway as PaymentGatewayRecord } from '../db/schema';
+import { paymentGatewayStatusEnum } from '../db/schema';
 
-type PaymentGatewayInsert = typeof paymentGateway.$inferInsert;
 type PaymentGatewayStatus = (typeof paymentGatewayStatusEnum.enumValues)[number];
-
-type CreateGatewayInput = Omit<PaymentGatewayInsert, 'id' | 'createdAt' | 'updatedAt'> & {
-	credentials?: Record<string, unknown>;
-	metadata?: Record<string, unknown> | null;
-};
-
-type UpdateGatewayInput = Partial<Omit<PaymentGatewayInsert, 'id'>>;
 
 export const paymentGatewayService = {
 	getById: async (id: string) => {
-		const result = await db.select().from(paymentGateway).where(eq(paymentGateway.id, id));
-		return result[0] ?? null;
+		return await paymentGatewayRepository.getById(id);
 	},
 	getByProvider: async (provider: PaymentGatewayRecord['provider']) => {
-		return await db
-			.select()
-			.from(paymentGateway)
-			.where(eq(paymentGateway.provider, provider))
-			.orderBy(desc(paymentGateway.createdAt));
+		return await paymentGatewayRepository.getByProvider(provider);
 	},
 	getActive: async () => {
-		return await db
-			.select()
-			.from(paymentGateway)
-			.where(eq(paymentGateway.status, 'active'))
-			.orderBy(desc(paymentGateway.createdAt));
+		return await paymentGatewayRepository.getActive();
 	},
 	list: async () => {
-		return await db.select().from(paymentGateway).orderBy(desc(paymentGateway.createdAt));
+		return await paymentGatewayRepository.list();
 	},
-	create: async (input: CreateGatewayInput) => {
-		const now = new Date();
-		const payload: PaymentGatewayInsert = {
-			...input,
-			id: crypto.randomUUID(),
-			credentials: input.credentials ?? {},
-			metadata: input.metadata ?? null,
-			createdAt: now,
-			updatedAt: now
-		};
-		const [record] = await db.insert(paymentGateway).values(payload).returning();
-		return record;
+	create: async (input: Omit<typeof import('../db/schema').paymentGateway.$inferInsert, 'id' | 'createdAt' | 'updatedAt'> & {
+		credentials?: Record<string, unknown>;
+		metadata?: Record<string, unknown> | null;
+	}) => {
+		return await paymentGatewayRepository.create(input);
 	},
-	update: async (id: string, input: UpdateGatewayInput) => {
-		const payload: UpdateGatewayInput = {
-			...input,
-			updatedAt: new Date()
-		};
-		const [record] = await db
-			.update(paymentGateway)
-			.set(payload)
-			.where(eq(paymentGateway.id, id))
-			.returning();
-		return record ?? null;
+	update: async (id: string, input: Partial<Omit<typeof import('../db/schema').paymentGateway.$inferInsert, 'id'>>) => {
+		return await paymentGatewayRepository.update(id, input);
 	},
 	updateCredentials: async (id: string, credentials: Record<string, unknown>) => {
-		const [record] = await db
-			.update(paymentGateway)
-			.set({ credentials, updatedAt: new Date() })
-			.where(eq(paymentGateway.id, id))
-			.returning();
-		return record ?? null;
+		return await paymentGatewayRepository.updateCredentials(id, credentials);
 	},
 	setStatus: async (id: string, status: PaymentGatewayStatus) => {
-		const [record] = await db
-			.update(paymentGateway)
-			.set({ status, updatedAt: new Date() })
-			.where(eq(paymentGateway.id, id))
-			.returning();
-		return record ?? null;
+		return await paymentGatewayRepository.setStatus(id, status);
 	},
 	delete: async (id: string) => {
-		const hasPayments = await db
-			.select({ exists: sql`1` })
-			.from(payment)
-			.where(eq(payment.gatewayId, id))
-			.limit(1);
-
-		if (hasPayments.length > 0) {
+		const hasPayments = await paymentGatewayRepository.hasPayments(id);
+		
+		if (hasPayments) {
 			throw new Error('Gateway has payments associated and cannot be deleted.');
 		}
-
-		await db.delete(paymentGateway).where(eq(paymentGateway.id, id));
+		
+		return await paymentGatewayRepository.delete(id);
 	},
 	getGatewayPerformance: async (options?: { days?: number }) => {
-		const rawDays = options?.days;
-		const days = typeof rawDays === 'number' && Number.isFinite(rawDays)
-			? Math.max(0, Math.trunc(rawDays))
-			: null;
-		const joinFilter = days && days > 0
-			? sql.raw(` AND p.created_at >= NOW() - INTERVAL '${days} days'`)
-			: sql``;
-
-		const query = sql`
-			SELECT
-				pg.id,
-				pg.name,
-				pg.provider,
-				pg.status,
-				COUNT(p.id) FILTER (WHERE p.status = 'succeeded')::int AS successful_payments,
-				COUNT(p.id) FILTER (WHERE p.status = 'failed')::int AS failed_payments,
-				COUNT(p.id)::int AS total_payments,
-				COALESCE(SUM(CASE WHEN p.status = 'succeeded' THEN p.amount ELSE 0 END), 0)::text AS total_volume
-			FROM payment_gateway pg
-			LEFT JOIN payment p ON pg.id = p.gateway_id${joinFilter}
-			GROUP BY pg.id
-			ORDER BY total_volume::numeric DESC, successful_payments DESC
-		`;
-
-		const result = await db.all(query);
-		return result as Array<{
-			id: string;
-			name: string;
-			provider: PaymentGatewayRecord['provider'];
-			status: PaymentGatewayStatus;
-			successful_payments: number;
-			failed_payments: number;
-			total_payments: number;
-			total_volume: string;
-		}>;
+		return await paymentGatewayRepository.getGatewayPerformance(options);
 	}
 };

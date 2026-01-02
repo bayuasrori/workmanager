@@ -1,6 +1,5 @@
-import { db } from '../db';
-import { task, type Task } from '../db/schema';
-import { eq, and, count, sql } from 'drizzle-orm';
+import { taskRepository } from '../repositories';
+import { type Task } from '../db/schema';
 import { activityService } from './activity';
 
 type TaskActivityOptions = {
@@ -9,21 +8,15 @@ type TaskActivityOptions = {
 
 export const taskService = {
 	getById: async (id: string) => {
-		const data = await db.query.task.findFirst({
-			where: eq(task.id, id),
-			with: { assignee: true, status: true }
-		});
-		return data;
+		return await taskRepository.getById(id);
 	},
 	getAll: async () => {
-		return await db.query.task.findMany({
-			with: { assignee: true, status: true }
-		});
+		return await taskRepository.getAll();
 	},
 	create: async (item: Omit<Task, 'id'>, options?: TaskActivityOptions) => {
-		const id = crypto.randomUUID();
-		const result = await db.insert(task).values({ ...item, id });
-		if (options?.actorId && item.projectId) {
+		const result = await taskRepository.create(item);
+		const id = typeof result[0] === 'string' ? result[0] : result[0]?.id;
+		if (options?.actorId && item.projectId && id) {
 			await activityService.record({
 				projectId: item.projectId,
 				userId: options.actorId,
@@ -38,12 +31,12 @@ export const taskService = {
 	update: async (id: string, item: Partial<Omit<Task, 'id'>>, options?: TaskActivityOptions) => {
 		let previous: Task | null = null;
 		if (options?.actorId) {
-			previous = (await db.query.task.findFirst({ where: eq(task.id, id) })) ?? null;
+			previous = (await taskRepository.getById(id)) ?? null;
 		}
-		const updatedRows = await db.update(task).set(item).where(eq(task.id, id)).returning();
+		const updatedRows = await taskRepository.update(id, item);
 		const updated = updatedRows[0];
-		if (options?.actorId) {
-			const projectId = updated?.projectId ?? previous?.projectId ?? null;
+		if (options?.actorId && updated) {
+			const projectId = updated.projectId ?? previous?.projectId ?? null;
 			if (projectId) {
 				const metadataPayload: Record<string, unknown> = {};
 				const changes: Record<string, { old: unknown; new: unknown }> = {};
@@ -78,8 +71,8 @@ export const taskService = {
 					taskId: id,
 					type: statusChanged ? 'TASK_STATUS_CHANGED' : 'TASK_UPDATED',
 					description: statusChanged
-						? `Status task "${updated?.name ?? previous?.name ?? ''}" diperbarui`
-						: `Task "${updated?.name ?? previous?.name ?? ''}" diperbarui`,
+						? `Status task "${updated.name ?? previous?.name ?? ''}" diperbarui`
+						: `Task "${updated.name ?? previous?.name ?? ''}" diperbarui`,
 					metadata: Object.keys(metadataPayload).length ? metadataPayload : undefined
 				});
 			}
@@ -89,9 +82,9 @@ export const taskService = {
 	delete: async (id: string, options?: TaskActivityOptions) => {
 		let existing: Task | null = null;
 		if (options?.actorId) {
-			existing = (await db.query.task.findFirst({ where: eq(task.id, id) })) ?? null;
+			existing = (await taskRepository.getById(id)) ?? null;
 		}
-		const result = await db.delete(task).where(eq(task.id, id));
+		const result = await taskRepository.delete(id);
 		if (options?.actorId && existing?.projectId) {
 			await activityService.record({
 				projectId: existing.projectId,
@@ -105,84 +98,24 @@ export const taskService = {
 		return result;
 	},
 	getByProjectId: async (projectId: string) => {
-		return await db.query.task.findMany({
-			where: eq(task.projectId, projectId),
-			with: { assignee: true, status: true }
-		});
+		return await taskRepository.getByProjectId(projectId);
 	},
 	getByProjectIdAndStatus: async (projectId: string, statusId: string) => {
-		return await db.query.task.findMany({
-			where: and(eq(task.projectId, projectId), eq(task.statusId, statusId)),
-			with: { assignee: true, status: true }
-		});
+		return await taskRepository.getByProjectIdAndStatus(projectId, statusId);
 	},
 	getUserTaskCount: async (userId: string) => {
-		return await db.select({ count: count() }).from(task).where(eq(task.assigneeId, userId));
+		return await taskRepository.getUserTaskCount(userId);
 	},
 	getUserTasks: async (userId: string) => {
-		return await db.query.task.findMany({
-			where: eq(task.assigneeId, userId),
-			with: { assignee: true, status: true }
-		});
+		return await taskRepository.getUserTasks(userId);
 	},
 	getTaskVelocity: async () => {
-		const query = sql`
-			SELECT
-				TO_CHAR(a.created_at, 'YYYY-MM-DD') as date,
-				COUNT(CASE WHEN a.type = 'TASK_CREATED' THEN 1 END)::int as created,
-				COUNT(CASE WHEN a.type = 'TASK_STATUS_CHANGED' THEN 1 END)::int as completed
-			FROM
-				activity a
-			WHERE
-				a.created_at >= NOW() - INTERVAL '30 days'
-				AND a.type IN ('TASK_CREATED', 'TASK_STATUS_CHANGED')
-			GROUP BY
-				date
-			ORDER BY
-				date ASC
-		`;
-		const result = await db.all(query);
-		return result as { date: string; created: number; completed: number }[];
+		return await taskRepository.getTaskVelocity();
 	},
 	getTaskCompletionRate: async () => {
-		const query = sql`
-			SELECT
-				TO_CHAR(t.start_date, 'YYYY-MM') as month,
-				COUNT(*)::int as total_tasks,
-				COUNT(CASE WHEN t.end_date IS NOT NULL THEN 1 END)::int as completed_tasks,
-				ROUND(COUNT(CASE WHEN t.end_date IS NOT NULL THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0), 2) as completion_rate
-			FROM
-				task t
-			WHERE
-				t.start_date >= NOW() - INTERVAL '12 months'
-			GROUP BY
-				month
-			ORDER BY
-				month DESC
-		`;
-		const result = await db.all(query);
-		return result as { month: string; total_tasks: number; completed_tasks: number; completion_rate: number }[];
+		return await taskRepository.getTaskCompletionRate();
 	},
 	getTaskStatusMetrics: async () => {
-		const query = sql`
-			SELECT
-				ts.name as status_name,
-				COUNT(t.id)::int as task_count,
-				AVG(CASE 
-					WHEN t.start_date IS NOT NULL AND t.end_date IS NOT NULL 
-					THEN EXTRACT(EPOCH FROM (t.end_date - t.start_date)) / 86400.0
-					ELSE NULL 
-				END) as avg_completion_days
-			FROM
-				task_status ts
-			LEFT JOIN
-				task t ON ts.id = t.status_id
-			GROUP BY
-				ts.name
-			ORDER BY
-				task_count DESC
-		`;
-		const result = await db.all(query);
-		return result as { status_name: string; task_count: number; avg_completion_days: number }[];
+		return await taskRepository.getTaskStatusMetrics();
 	}
 };
