@@ -1,11 +1,23 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+	import { getOrganizations, deleteOrganization } from './data.remote';
 
-	export let data: PageData;
+	const data = $derived(await getOrganizations());
+
+	const handleDeleteOrganization = async (id: string) => {
+		if (!confirm('Hapus organisasi ini?')) return;
+		try {
+			await deleteOrganization({ id }).updates(getOrganizations());
+		} catch (error) {
+			console.error('Gagal menghapus organisasi', error);
+			alert('Gagal menghapus organisasi. Silakan coba lagi.');
+		}
+	};
 </script>
 
 <div class="space-y-6 p-4">
-	<section class="rounded-3xl bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-700 px-6 py-6 shadow-xl text-emerald-50">
+	<section
+		class="rounded-3xl bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-700 px-6 py-6 shadow-xl text-emerald-50"
+	>
 		<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 			<div>
 				<h1 class="text-3xl font-extrabold">Daftar Organisasi</h1>
@@ -32,7 +44,9 @@
 		</div>
 	</section>
 
-	<section class="hidden overflow-x-auto rounded-3xl border border-emerald-200 bg-white shadow-lg lg:block">
+	<section
+		class="hidden overflow-x-auto rounded-3xl border border-emerald-200 bg-white shadow-lg lg:block"
+	>
 		<table class="table w-full">
 			<thead class="bg-emerald-50 text-emerald-900">
 				<tr class="text-sm uppercase tracking-wide">
@@ -46,7 +60,9 @@
 					<tr class="border-b border-emerald-50 hover:bg-emerald-50/60 transition-colors">
 						<td class="py-4">
 							<div class="flex items-center gap-3">
-								<div class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-semibold">
+								<div
+									class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-semibold"
+								>
 									{org.name?.[0]?.toUpperCase() ?? 'O'}
 								</div>
 								<div>
@@ -56,7 +72,9 @@
 							</div>
 						</td>
 						<td class="text-emerald-800">
-							<span class="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-sm text-emerald-700 border border-emerald-200">
+							<span
+								class="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-sm text-emerald-700 border border-emerald-200"
+							>
 								👤 {org.ownerId ?? 'Tidak ditentukan'}
 							</span>
 						</td>
@@ -68,11 +86,13 @@
 								>
 									Edit
 								</a>
-								<form method="POST" action="?/delete&id={org.id}" class="contents">
-									<button class="btn btn-sm bg-emerald-600 text-emerald-50 border-none hover:bg-emerald-700">
-										Delete
-									</button>
-								</form>
+								<button
+									type="button"
+									class="btn btn-sm bg-emerald-600 text-emerald-50 border-none hover:bg-emerald-700"
+									onclick={() => handleDeleteOrganization(org.id)}
+								>
+									Delete
+								</button>
 							</div>
 						</td>
 					</tr>
@@ -86,7 +106,9 @@
 			<article class="rounded-2xl border border-emerald-200 bg-white shadow-md p-4">
 				<header class="flex items-center justify-between gap-3">
 					<div class="flex items-center gap-3">
-						<div class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-semibold">
+						<div
+							class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-semibold"
+						>
 							{org.name?.[0]?.toUpperCase() ?? 'O'}
 						</div>
 						<div>
@@ -102,11 +124,13 @@
 					>
 						Edit
 					</a>
-					<form method="POST" action="?/delete&id={org.id}" class="flex-1">
-						<button class="btn btn-sm w-full bg-emerald-600 text-emerald-50 border-none hover:bg-emerald-700">
-							Delete
-						</button>
-					</form>
+					<button
+						type="button"
+						class="btn btn-sm w-full bg-emerald-600 text-emerald-50 border-none hover:bg-emerald-700"
+						onclick={() => handleDeleteOrganization(org.id)}
+					>
+						Delete
+					</button>
 				</footer>
 			</article>
 		{/each}

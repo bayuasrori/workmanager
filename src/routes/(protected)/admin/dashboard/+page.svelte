@@ -1,273 +1,239 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+	import { page } from '$app/stores';
 	import Chart from '$lib/components/Chart.svelte';
+	import { getAdminDashboardData } from './data.remote';
 
-	export let data: PageData;
+	const pageParam = $derived(Number($page.url.searchParams.get('page') ?? '1'));
+	const data = $derived(await getAdminDashboardData({ page: pageParam }));
 
-	let userActivityChartData = {};
+	const userActivityChartData = $derived.by(() => {
+		if (!data.userActivity?.length) return {};
+		const labels = data.userActivity.map((entry) => entry.username);
+		const counts = data.userActivity.map((entry) => entry.count);
+		return {
+			labels,
+			datasets: [
+				{
+					label: 'User Activity',
+					data: counts,
+					backgroundColor: 'rgba(16, 185, 129, 0.5)',
+					borderColor: 'rgba(16, 185, 129, 1)',
+					borderWidth: 1
+				}
+			]
+		};
+	});
 
-	$: {
-		if (data.userActivity) {
-			const labels = data.userActivity.map((d) => d.username);
-			const counts = data.userActivity.map((d) => d.count);
-			userActivityChartData = {
-				labels: labels,
-				datasets: [
-					{
-						label: 'User Activity',
-						data: counts,
-						backgroundColor: 'rgba(16, 185, 129, 0.5)',
-						borderColor: 'rgba(16, 185, 129, 1)',
-						borderWidth: 1
-					}
-				]
-			};
-		}
-	}
+	const projectTaskDistributionChartData = $derived.by(() => {
+		if (!data.projectTaskDistribution?.length) return {};
+		const labels = data.projectTaskDistribution.map((entry) => entry.name);
+		const counts = data.projectTaskDistribution.map((entry) => entry.count);
+		return {
+			labels,
+			datasets: [
+				{
+					label: 'Tasks per Project',
+					data: counts,
+					backgroundColor: [
+						'rgba(255, 99, 132, 0.5)',
+						'rgba(54, 162, 235, 0.5)',
+						'rgba(255, 206, 86, 0.5)',
+						'rgba(75, 192, 192, 0.5)',
+						'rgba(153, 102, 255, 0.5)',
+						'rgba(255, 159, 64, 0.5)'
+					],
+					borderColor: [
+						'rgba(255, 99, 132, 1)',
+						'rgba(54, 162, 235, 1)',
+						'rgba(255, 206, 86, 1)',
+						'rgba(75, 192, 192, 1)',
+						'rgba(153, 102, 255, 1)',
+						'rgba(255, 159, 64, 1)'
+					],
+					borderWidth: 1
+				}
+			]
+		};
+	});
 
-	let projectTaskDistributionChartData = {};
+	const taskStatusDistributionChartData = $derived.by(() => {
+		if (!data.taskStatusDistribution?.length) return {};
+		const labels = data.taskStatusDistribution.map((entry) => entry.task_status);
+		const counts = data.taskStatusDistribution.map((entry) => entry.count);
+		return {
+			labels,
+			datasets: [
+				{
+					label: 'Tasks per Status',
+					data: counts,
+					backgroundColor: [
+						'rgba(255, 99, 132, 0.5)',
+						'rgba(54, 162, 235, 0.5)',
+						'rgba(255, 206, 86, 0.5)',
+						'rgba(75, 192, 192, 0.5)',
+						'rgba(153, 102, 255, 0.5)',
+						'rgba(255, 159, 64, 0.5)'
+					],
+					borderColor: [
+						'rgba(255, 99, 132, 1)',
+						'rgba(54, 162, 235, 1)',
+						'rgba(255, 206, 86, 1)',
+						'rgba(75, 192, 192, 1)',
+						'rgba(153, 102, 255, 1)',
+						'rgba(255, 159, 64, 1)'
+					],
+					borderWidth: 1
+				}
+			]
+		};
+	});
 
-	$: {
-		if (data.projectTaskDistribution) {
-			const labels = data.projectTaskDistribution.map((d) => d.name);
-			const counts = data.projectTaskDistribution.map((d) => d.count);
-			projectTaskDistributionChartData = {
-				labels: labels,
-				datasets: [
-					{
-						label: 'Tasks per Project',
-						data: counts,
-						backgroundColor: [
-							'rgba(255, 99, 132, 0.5)',
-							'rgba(54, 162, 235, 0.5)',
-							'rgba(255, 206, 86, 0.5)',
-							'rgba(75, 192, 192, 0.5)',
-							'rgba(153, 102, 255, 0.5)',
-							'rgba(255, 159, 64, 0.5)'
-						],
-						borderColor: [
-							'rgba(255, 99, 132, 1)',
-							'rgba(54, 162, 235, 1)',
-							'rgba(255, 206, 86, 1)',
-							'rgba(75, 192, 192, 1)',
-							'rgba(153, 102, 255, 1)',
-							'rgba(255, 159, 64, 1)'
-						],
-						borderWidth: 1
-					}
-				]
-			};
-		}
-	}
+	const newUsersPerDayChartData = $derived.by(() => {
+		if (!data.newUsersPerDay?.length) return {};
+		const labels = data.newUsersPerDay.map((entry) => entry.date);
+		const counts = data.newUsersPerDay.map((entry) => entry.count);
+		return {
+			labels,
+			datasets: [
+				{
+					label: 'New Users Per Day',
+					data: counts,
+					fill: false,
+					borderColor: 'rgb(75, 192, 192)',
+					tension: 0.1
+				}
+			]
+		};
+	});
 
-	let taskStatusDistributionChartData = {};
+	const organizationDistributionChartData = $derived.by(() => {
+		if (!data.organizationDistribution?.length) return {};
+		const labels = data.organizationDistribution.map((entry) => entry.name);
+		const counts = data.organizationDistribution.map((entry) => entry.count);
+		return {
+			labels,
+			datasets: [
+				{
+					label: 'Projects per Organization',
+					data: counts,
+					backgroundColor: [
+						'rgba(255, 99, 132, 0.5)',
+						'rgba(54, 162, 235, 0.5)',
+						'rgba(255, 206, 86, 0.5)',
+						'rgba(75, 192, 192, 0.5)',
+						'rgba(153, 102, 255, 0.5)',
+						'rgba(255, 159, 64, 0.5)'
+					]
+				}
+			]
+		};
+	});
 
-	$: {
-		if (data.taskStatusDistribution) {
-			const labels = data.taskStatusDistribution.map((d) => d.task_status);
-			const counts = data.taskStatusDistribution.map((d) => d.count);
-			taskStatusDistributionChartData = {
-				labels: labels,
-				datasets: [
-					{
-						label: 'Tasks per Status',
-						data: counts,
-						backgroundColor: [
-							'rgba(255, 99, 132, 0.5)',
-							'rgba(54, 162, 235, 0.5)',
-							'rgba(255, 206, 86, 0.5)',
-							'rgba(75, 192, 192, 0.5)',
-							'rgba(153, 102, 255, 0.5)',
-							'rgba(255, 159, 64, 0.5)'
-						],
-						borderColor: [
-							'rgba(255, 99, 132, 1)',
-							'rgba(54, 162, 235, 1)',
-							'rgba(255, 206, 86, 1)',
-							'rgba(75, 192, 192, 1)',
-							'rgba(153, 102, 255, 1)',
-							'rgba(255, 159, 64, 1)'
-						],
-						borderWidth: 1
-					}
-				]
-			};
-		}
-	}
+	const userJourneyFunnelChartData = $derived.by(() => {
+		if (!data.userJourneyFunnel?.length) return {};
+		const labels = data.userJourneyFunnel.map((entry) => entry.stage);
+		const counts = data.userJourneyFunnel.map((entry) => entry.count);
+		return {
+			labels,
+			datasets: [
+				{
+					label: 'Users',
+					data: counts,
+					backgroundColor: 'rgba(59, 130, 246, 0.5)',
+					borderColor: 'rgba(59, 130, 246, 1)',
+					borderWidth: 2
+				}
+			]
+		};
+	});
 
-	let newUsersPerDayChartData = {};
+	const membershipDistributionChartData = $derived.by(() => {
+		if (!data.membershipDistribution?.length) return {};
+		const labels = data.membershipDistribution.map((entry) => entry.membership_type.toUpperCase());
+		const counts = data.membershipDistribution.map((entry) => entry.count);
+		return {
+			labels,
+			datasets: [
+				{
+					label: 'Membership Distribution',
+					data: counts,
+					backgroundColor: [
+						'rgba(34, 197, 94, 0.5)',
+						'rgba(251, 191, 36, 0.5)',
+						'rgba(147, 51, 234, 0.5)'
+					],
+					borderColor: ['rgba(34, 197, 94, 1)', 'rgba(251, 191, 36, 1)', 'rgba(147, 51, 234, 1)'],
+					borderWidth: 2
+				}
+			]
+		};
+	});
 
-	$: {
-		if (data.newUsersPerDay) {
-			const labels = data.newUsersPerDay.map((d) => d.date);
-			const counts = data.newUsersPerDay.map((d) => d.count);
-			newUsersPerDayChartData = {
-				labels: labels,
-				datasets: [
-					{
-						label: 'New Users Per Day',
-						data: counts,
-						fill: false,
-						borderColor: 'rgb(75, 192, 192)',
-						tension: 0.1
-					}
-				]
-			};
-		}
-	}
+	const taskVelocityChartData = $derived.by(() => {
+		if (!data.taskVelocity?.length) return {};
+		const labels = data.taskVelocity.map((entry) => entry.date);
+		const created = data.taskVelocity.map((entry) => entry.created);
+		const completed = data.taskVelocity.map((entry) => entry.completed);
+		return {
+			labels,
+			datasets: [
+				{
+					label: 'Tasks Created',
+					data: created,
+					backgroundColor: 'rgba(16, 185, 129, 0.5)',
+					borderColor: 'rgba(16, 185, 129, 1)',
+					fill: false,
+					tension: 0.1
+				},
+				{
+					label: 'Tasks Completed',
+					data: completed,
+					backgroundColor: 'rgba(239, 68, 68, 0.5)',
+					borderColor: 'rgba(239, 68, 68, 1)',
+					fill: false,
+					tension: 0.1
+				}
+			]
+		};
+	});
 
-	let organizationDistributionChartData = {};
+	const taskCompletionRateChartData = $derived.by(() => {
+		if (!data.taskCompletionRate?.length) return {};
+		const labels = data.taskCompletionRate.map((entry) => entry.month);
+		const rates = data.taskCompletionRate.map((entry) => entry.completion_rate);
+		return {
+			labels,
+			datasets: [
+				{
+					label: 'Completion Rate %',
+					data: rates,
+					backgroundColor: 'rgba(168, 85, 247, 0.5)',
+					borderColor: 'rgba(168, 85, 247, 1)',
+					borderWidth: 2,
+					fill: true
+				}
+			]
+		};
+	});
 
-	$: {
-		if (data.organizationDistribution) {
-			const labels = data.organizationDistribution.map((d) => d.name);
-			const counts = data.organizationDistribution.map((d) => d.count);
-			organizationDistributionChartData = {
-				labels: labels,
-				datasets: [
-					{
-						label: 'Projects per Organization',
-						data: counts,
-						backgroundColor: [
-							'rgba(255, 99, 132, 0.5)',
-							'rgba(54, 162, 235, 0.5)',
-							'rgba(255, 206, 86, 0.5)',
-							'rgba(75, 192, 192, 0.5)',
-							'rgba(153, 102, 255, 0.5)',
-							'rgba(255, 159, 64, 0.5)'
-						]
-					}
-				]
-			};
-		}
-	}
-
-	// New engagement charts data
-	let userJourneyFunnelChartData = {};
-
-	$: {
-		if (data.userJourneyFunnel) {
-			const labels = data.userJourneyFunnel.map((d) => d.stage);
-			const counts = data.userJourneyFunnel.map((d) => d.count);
-			const percentages = data.userJourneyFunnel.map((d) => d.percentage);
-			userJourneyFunnelChartData = {
-				labels: labels,
-				datasets: [
-					{
-						label: 'Users',
-						data: counts,
-						backgroundColor: 'rgba(59, 130, 246, 0.5)',
-						borderColor: 'rgba(59, 130, 246, 1)',
-						borderWidth: 2
-					}
-				]
-			};
-		}
-	}
-
-	let membershipDistributionChartData = {};
-
-	$: {
-		if (data.membershipDistribution) {
-			const labels = data.membershipDistribution.map((d) => d.membership_type.toUpperCase());
-			const counts = data.membershipDistribution.map((d) => d.count);
-			membershipDistributionChartData = {
-				labels: labels,
-				datasets: [
-					{
-						label: 'Membership Distribution',
-						data: counts,
-						backgroundColor: [
-							'rgba(34, 197, 94, 0.5)',
-							'rgba(251, 191, 36, 0.5)',
-							'rgba(147, 51, 234, 0.5)'
-						],
-						borderColor: [
-							'rgba(34, 197, 94, 1)',
-							'rgba(251, 191, 36, 1)',
-							'rgba(147, 51, 234, 1)'
-						],
-						borderWidth: 2
-					}
-				]
-			};
-		}
-	}
-
-	let taskVelocityChartData = {};
-
-	$: {
-		if (data.taskVelocity) {
-			const labels = data.taskVelocity.map((d) => d.date);
-			const created = data.taskVelocity.map((d) => d.created);
-			const completed = data.taskVelocity.map((d) => d.completed);
-			taskVelocityChartData = {
-				labels: labels,
-				datasets: [
-					{
-						label: 'Tasks Created',
-						data: created,
-						backgroundColor: 'rgba(16, 185, 129, 0.5)',
-						borderColor: 'rgba(16, 185, 129, 1)',
-						fill: false,
-						tension: 0.1
-					},
-					{
-						label: 'Tasks Completed',
-						data: completed,
-						backgroundColor: 'rgba(239, 68, 68, 0.5)',
-						borderColor: 'rgba(239, 68, 68, 1)',
-						fill: false,
-						tension: 0.1
-					}
-				]
-			};
-		}
-	}
-
-	let taskCompletionRateChartData = {};
-
-	$: {
-		if (data.taskCompletionRate) {
-			const labels = data.taskCompletionRate.map((d) => d.month);
-			const rates = data.taskCompletionRate.map((d) => d.completion_rate);
-			taskCompletionRateChartData = {
-				labels: labels,
-				datasets: [
-					{
-						label: 'Completion Rate %',
-						data: rates,
-						backgroundColor: 'rgba(168, 85, 247, 0.5)',
-						borderColor: 'rgba(168, 85, 247, 1)',
-						borderWidth: 2,
-						fill: true
-					}
-				]
-			};
-		}
-	}
-
-	let sessionDurationTrendsChartData = {};
-
-	$: {
-		if (data.sessionDurationTrends) {
-			const labels = data.sessionDurationTrends.map((d) => d.date);
-			const durations = data.sessionDurationTrends.map((d) => d.avg_duration_hours);
-			sessionDurationTrendsChartData = {
-				labels: labels,
-				datasets: [
-					{
-						label: 'Avg Session Duration (hours)',
-						data: durations,
-						backgroundColor: 'rgba(245, 158, 11, 0.5)',
-						borderColor: 'rgba(245, 158, 11, 1)',
-						fill: false,
-						tension: 0.4
-					}
-				]
-			};
-		}
-	}
+	const sessionDurationTrendsChartData = $derived.by(() => {
+		if (!data.sessionDurationTrends?.length) return {};
+		const labels = data.sessionDurationTrends.map((entry) => entry.date);
+		const durations = data.sessionDurationTrends.map((entry) => entry.avg_duration_hours);
+		return {
+			labels,
+			datasets: [
+				{
+					label: 'Avg Session Duration (hours)',
+					data: durations,
+					backgroundColor: 'rgba(245, 158, 11, 0.5)',
+					borderColor: 'rgba(245, 158, 11, 1)',
+					fill: false,
+					tension: 0.4
+				}
+			]
+		};
+	});
 </script>
 
 <div class="p-4 space-y-4">
@@ -295,7 +261,9 @@
 		<div class="card bg-orange-100 shadow-lg border-l-4 border-orange-500">
 			<div class="card-body">
 				<h2 class="card-title text-orange-700">Active Sessions</h2>
-				<p class="text-4xl font-bold text-orange-800">{data.activeSessionsCount?.active_sessions || 0}</p>
+				<p class="text-4xl font-bold text-orange-800">
+					{data.activeSessionsCount?.active_sessions || 0}
+				</p>
 			</div>
 		</div>
 	</div>
@@ -306,14 +274,22 @@
 			<div class="card-body">
 				<h2 class="card-title text-blue-700">🎯 User Journey Funnel</h2>
 				<p class="text-sm text-blue-600 mb-4">New user onboarding progression</p>
-				<Chart type="bar" data={userJourneyFunnelChartData} options={{ responsive: true, indexAxis: 'y' }} />
+				<Chart
+					type="bar"
+					data={userJourneyFunnelChartData}
+					options={{ responsive: true, indexAxis: 'y' }}
+				/>
 			</div>
 		</div>
 		<div class="card bg-gradient-to-br from-green-50 to-green-100 shadow-lg">
 			<div class="card-body">
 				<h2 class="card-title text-green-700">💎 Membership Distribution</h2>
 				<p class="text-sm text-green-600 mb-4">User subscription tiers</p>
-				<Chart type="doughnut" data={membershipDistributionChartData} options={{ responsive: true }} />
+				<Chart
+					type="doughnut"
+					data={membershipDistributionChartData}
+					options={{ responsive: true }}
+				/>
 			</div>
 		</div>
 		<div class="card bg-gradient-to-br from-purple-50 to-purple-100 shadow-lg">
@@ -362,7 +338,11 @@
 		<div class="card bg-base-200 shadow-lg">
 			<div class="card-body">
 				<h2 class="card-title">Task Status Distribution</h2>
-				<Chart type="doughnut" data={taskStatusDistributionChartData} options={{ responsive: true }} />
+				<Chart
+					type="doughnut"
+					data={taskStatusDistributionChartData}
+					options={{ responsive: true }}
+				/>
 			</div>
 		</div>
 		<div class="card bg-base-200 shadow-lg">
@@ -382,7 +362,9 @@
 				<div class="space-y-2 max-h-64 overflow-y-auto">
 					{#if data.realTimeActivityFeed && data.realTimeActivityFeed.length}
 						{#each data.realTimeActivityFeed.slice(0, 10) as activity}
-							<div class="flex items-center justify-between p-2 bg-white rounded border border-cyan-200">
+							<div
+								class="flex items-center justify-between p-2 bg-white rounded border border-cyan-200"
+							>
 								<div class="flex-1">
 									<p class="text-sm font-medium text-gray-900">{activity.username}</p>
 									<p class="text-xs text-gray-600">{activity.description || activity.type}</p>
@@ -405,8 +387,10 @@
 				<p class="text-sm text-red-600 mb-4">Users at risk of churning</p>
 				<div class="space-y-2 max-h-64 overflow-y-auto">
 					{#if data.churnRisk && data.churnRisk.length}
-						{#each data.churnRisk.filter(u => u.risk_level === 'high').slice(0, 5) as user}
-							<div class="flex items-center justify-between p-2 bg-white rounded border border-red-200">
+						{#each data.churnRisk.filter((u) => u.risk_level === 'high').slice(0, 5) as user}
+							<div
+								class="flex items-center justify-between p-2 bg-white rounded border border-red-200"
+							>
 								<div class="flex-1">
 									<p class="text-sm font-medium text-gray-900">{user.username}</p>
 									<p class="text-xs text-gray-600">{user.membership_type || 'free'}</p>
@@ -432,7 +416,11 @@
 	<div class="card bg-base-200 shadow-lg mt-6">
 		<div class="card-body">
 			<h2 class="card-title">Organization Distribution</h2>
-			<Chart type="polarArea" data={organizationDistributionChartData} options={{ responsive: true }} />
+			<Chart
+				type="polarArea"
+				data={organizationDistributionChartData}
+				options={{ responsive: true }}
+			/>
 		</div>
 	</div>
 
@@ -455,7 +443,13 @@
 								<td class="font-medium text-slate-800">{user.username}</td>
 								<td class="text-slate-600">{user.email}</td>
 								<td>
-									<span class="badge {user.membership_type === 'free' ? 'bg-slate-200 text-slate-700' : user.membership_type === 'pro' ? 'bg-blue-200 text-blue-800' : 'bg-purple-200 text-purple-800'} border-none">
+									<span
+										class="badge {user.membership_type === 'free'
+											? 'bg-slate-200 text-slate-700'
+											: user.membership_type === 'pro'
+												? 'bg-blue-200 text-blue-800'
+												: 'bg-purple-200 text-purple-800'} border-none"
+									>
 										{user.membership_type.toUpperCase()}
 									</span>
 								</td>
@@ -464,27 +458,37 @@
 					</tbody>
 				</table>
 			</div>
-			
+
 			<!-- Pagination -->
 			<div class="flex justify-between items-center mt-6 pt-4 border-t border-slate-200">
 				<div class="text-sm text-slate-600">
-					Showing {((data.paginatedUsers.pagination.currentPage - 1) * data.paginatedUsers.pagination.itemsPerPage) + 1} to 
-					{Math.min(data.paginatedUsers.pagination.currentPage * data.paginatedUsers.pagination.itemsPerPage, data.paginatedUsers.pagination.totalItems)} 
+					Showing {(data.paginatedUsers.pagination.currentPage - 1) *
+						data.paginatedUsers.pagination.itemsPerPage +
+						1} to
+					{Math.min(
+						data.paginatedUsers.pagination.currentPage *
+							data.paginatedUsers.pagination.itemsPerPage,
+						data.paginatedUsers.pagination.totalItems
+					)}
 					of {data.paginatedUsers.pagination.totalItems} users
 				</div>
 				<div class="join">
-					<a 
-						href="?page={data.paginatedUsers.pagination.currentPage - 1}" 
-						class="join-item btn btn-sm {!data.paginatedUsers.pagination.hasPrev ? 'btn-disabled' : 'btn-outline'}"
+					<a
+						href="?page={data.paginatedUsers.pagination.currentPage - 1}"
+						class="join-item btn btn-sm {!data.paginatedUsers.pagination.hasPrev
+							? 'btn-disabled'
+							: 'btn-outline'}"
 						class:btn-disabled={!data.paginatedUsers.pagination.hasPrev}
 					>
 						Previous
 					</a>
-					{#each Array.from({length: data.paginatedUsers.pagination.totalPages}, (_, i) => i + 1) as pageNum}
+					{#each Array.from({ length: data.paginatedUsers.pagination.totalPages }, (_, i) => i + 1) as pageNum}
 						{#if pageNum === 1 || pageNum === data.paginatedUsers.pagination.totalPages || (pageNum >= data.paginatedUsers.pagination.currentPage - 1 && pageNum <= data.paginatedUsers.pagination.currentPage + 1)}
-							<a 
-								href="?page={pageNum}" 
-								class="join-item btn btn-sm {pageNum === data.paginatedUsers.pagination.currentPage ? 'btn-primary' : 'btn-outline'}"
+							<a
+								href="?page={pageNum}"
+								class="join-item btn btn-sm {pageNum === data.paginatedUsers.pagination.currentPage
+									? 'btn-primary'
+									: 'btn-outline'}"
 							>
 								{pageNum}
 							</a>
@@ -492,9 +496,11 @@
 							<span class="join-item btn btn-sm btn-disabled">...</span>
 						{/if}
 					{/each}
-					<a 
-						href="?page={data.paginatedUsers.pagination.currentPage + 1}" 
-						class="join-item btn btn-sm {!data.paginatedUsers.pagination.hasNext ? 'btn-disabled' : 'btn-outline'}"
+					<a
+						href="?page={data.paginatedUsers.pagination.currentPage + 1}"
+						class="join-item btn btn-sm {!data.paginatedUsers.pagination.hasNext
+							? 'btn-disabled'
+							: 'btn-outline'}"
 						class:btn-disabled={!data.paginatedUsers.pagination.hasNext}
 					>
 						Next

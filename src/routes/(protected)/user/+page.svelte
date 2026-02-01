@@ -1,15 +1,29 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+	import { deleteUser, getUsers } from './data.remote';
 
-	export let data: PageData;
+	const data = $derived(await getUsers());
+
+	const handleDeleteUser = async (userId: string) => {
+		if (!confirm('Hapus pengguna ini?')) return;
+		try {
+			await deleteUser({ userId }).updates(getUsers());
+		} catch (error) {
+			console.error('Gagal menghapus pengguna', error);
+			alert('Gagal menghapus pengguna. Silakan coba lagi.');
+		}
+	};
 </script>
 
 <div class="space-y-6 p-4">
-	<section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-700 px-6 py-7 shadow-xl text-emerald-50">
+	<section
+		class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-700 px-6 py-7 shadow-xl text-emerald-50"
+	>
 		<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 			<div>
 				<h1 class="text-3xl font-extrabold">Manajemen Pengguna</h1>
-				<p class="text-sm text-emerald-100/80">Kelola akun tim Anda, perbarui informasi, dan atur akses dengan mudah.</p>
+				<p class="text-sm text-emerald-100/80">
+					Kelola akun tim Anda, perbarui informasi, dan atur akses dengan mudah.
+				</p>
 			</div>
 			<a
 				href="/user/create"
@@ -31,7 +45,9 @@
 	</section>
 
 	<!-- Desktop table -->
-	<section class="hidden overflow-x-auto rounded-3xl border border-emerald-200 bg-white shadow-lg lg:block">
+	<section
+		class="hidden overflow-x-auto rounded-3xl border border-emerald-200 bg-white shadow-lg lg:block"
+	>
 		<table class="table w-full">
 			<thead class="bg-emerald-50 text-emerald-900">
 				<tr class="text-sm uppercase tracking-wide">
@@ -46,7 +62,9 @@
 					<tr class="border-b border-emerald-50 hover:bg-emerald-50/60 transition-colors">
 						<td class="py-4">
 							<div class="flex items-center gap-3">
-								<div class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-semibold">
+								<div
+									class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-semibold"
+								>
 									{user.username?.[0]?.toUpperCase() ?? '?'}
 								</div>
 								<div>
@@ -65,11 +83,13 @@
 								>
 									Edit
 								</a>
-								<form method="POST" action="?/delete&id={user.id}" class="contents">
-									<button class="btn btn-sm bg-emerald-600 text-emerald-50 border-none hover:bg-emerald-700">
-										Delete
-									</button>
-								</form>
+								<button
+									type="button"
+									class="btn btn-sm bg-emerald-600 text-emerald-50 border-none hover:bg-emerald-700"
+									onclick={() => handleDeleteUser(user.id)}
+								>
+									Delete
+								</button>
 							</div>
 						</td>
 					</tr>
@@ -84,7 +104,9 @@
 			<article class="rounded-2xl border border-emerald-200 bg-white shadow-md p-4">
 				<header class="flex items-center justify-between gap-3">
 					<div class="flex items-center gap-3">
-						<div class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-semibold">
+						<div
+							class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-semibold"
+						>
 							{user.username?.[0]?.toUpperCase() ?? '?'}
 						</div>
 						<div>
@@ -92,7 +114,9 @@
 							<p class="text-xs text-emerald-700/70">{user.email}</p>
 						</div>
 					</div>
-					<span class="badge bg-emerald-100 text-emerald-700 border-emerald-200">Age: {user.age ?? '-'}</span>
+					<span class="badge bg-emerald-100 text-emerald-700 border-emerald-200"
+						>Age: {user.age ?? '-'}</span
+					>
 				</header>
 				<footer class="mt-4 flex flex-wrap gap-2">
 					<a
@@ -101,11 +125,13 @@
 					>
 						Edit
 					</a>
-					<form method="POST" action="?/delete&id={user.id}" class="flex-1">
-						<button class="btn btn-sm w-full bg-emerald-600 text-emerald-50 border-none hover:bg-emerald-700">
-							Delete
-						</button>
-					</form>
+					<button
+						type="button"
+						class="btn btn-sm w-full bg-emerald-600 text-emerald-50 border-none hover:bg-emerald-700"
+						onclick={() => handleDeleteUser(user.id)}
+					>
+						Delete
+					</button>
 				</footer>
 			</article>
 		{/each}

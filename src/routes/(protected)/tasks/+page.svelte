@@ -1,7 +1,17 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+	import { deleteTask, getTasks } from './data.remote';
 
-	export let data: PageData;
+	const data = $derived(await getTasks());
+
+	const handleDeleteTask = async (taskId: string) => {
+		if (!confirm('Hapus tugas ini?')) return;
+		try {
+			await deleteTask({ taskId }).updates(getTasks());
+		} catch (error) {
+			console.error('Gagal menghapus tugas', error);
+			alert('Gagal menghapus tugas. Silakan coba lagi.');
+		}
+	};
 </script>
 
 <div class="p-4">
@@ -25,9 +35,13 @@
 						<td>{task.assigneeId}</td>
 						<td class="flex gap-2">
 							<a href="/tasks/{task.id}" class="btn btn-sm">Edit</a>
-							<form method="POST" action="?/delete&id={task.id}">
-								<button class="btn btn-sm btn-error">Delete</button>
-							</form>
+							<button
+								type="button"
+								class="btn btn-sm btn-error"
+								onclick={() => handleDeleteTask(task.id)}
+							>
+								Delete
+							</button>
 						</td>
 					</tr>
 				{/each}

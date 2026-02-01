@@ -1,8 +1,17 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import type { PageData } from './$types';
+	import { deleteStatus, getTaskStatuses } from './data.remote';
 
-	export let data: PageData;
+	const data = $derived(await getTaskStatuses());
+
+	const handleDeleteStatus = async (statusId: string) => {
+		if (!confirm('Hapus status ini?')) return;
+		try {
+			await deleteStatus({ statusId }).updates(getTaskStatuses());
+		} catch (error) {
+			console.error('Gagal menghapus status', error);
+			alert('Gagal menghapus status. Silakan coba lagi.');
+		}
+	};
 </script>
 
 <div class="p-4">
@@ -24,10 +33,13 @@
 							<td>{status.name}</td>
 							<td>
 								<a href="/task-status/{status.id}" class="btn btn-sm btn-info mr-2">Edit</a>
-								<form method="POST" action="?/deleteStatus" class="inline-block" use:enhance>
-									<input type="hidden" name="id" value={status.id} />
-									<button type="submit" class="btn btn-sm btn-error">Delete</button>
-								</form>
+								<button
+									type="button"
+									class="btn btn-sm btn-error"
+									onclick={() => handleDeleteStatus(status.id)}
+								>
+									Delete
+								</button>
 							</td>
 						</tr>
 					{/each}

@@ -144,6 +144,74 @@ export const publicBoardService = {
 		return await projectRepository.update(id, item);
 	},
 
+	// Convert existing project to public board
+	convertFromProject: async (projectId: string) => {
+		const project = await projectRepository.getById(projectId);
+		if (!project) {
+			throw new Error('Project not found');
+		}
+
+		if (project.isPublic) {
+			return project; // Already public
+		}
+
+		// Get or create public organization
+		const publicOrg = await getPublicOrganization();
+
+		// Generate unique slug for the public board
+		const baseSlug = generateSlug(project.name);
+		const slug = await ensureUniqueSlug(baseSlug);
+
+		// Update project to be public
+		await projectRepository.update(projectId, {
+			organizationId: publicOrg.id,
+			isPublic: true,
+			slug
+		});
+
+		// Get the updated project
+		const updatedProject = await projectRepository.getById(projectId);
+		return updatedProject;
+	},
+
+	// Create public board from user's existing project (with association)
+	createFromProjectForUser: async (projectId: string, userId: string) => {
+		const project = await projectRepository.getById(projectId);
+		if (!project) {
+			throw new Error('Project not found');
+		}
+
+		if (project.isPublic) {
+			return project; // Already public
+		}
+
+		// Get or create public organization
+		const publicOrg = await getPublicOrganization();
+
+		// Generate unique slug for the public board
+		const baseSlug = generateSlug(project.name);
+		const slug = await ensureUniqueSlug(baseSlug);
+
+		// Update project to be public with organization
+		await projectRepository.update(projectId, {
+			organizationId: publicOrg.id,
+			isPublic: true,
+			slug
+		});
+
+		// Add user as member of public organization (if not already)
+		const allOrgs = await organizationRepository.getAll();
+		const publicOrgData = allOrgs.find(o => o.id === publicOrg.id);
+		if (publicOrgData && !publicOrgData.ownerId) {
+			// Set user as owner of public org
+			await organizationRepository.update(publicOrg.id, { ownerId: userId });
+		}
+
+		// Get the updated project
+		const updatedProject = await projectRepository.getById(projectId);
+		return updatedProject;
+	},
+
 	delete: async (id: string) => {
 		// First delete all tasks associated with the project
 		const tasks = await taskRepository.getByProjectId(id);

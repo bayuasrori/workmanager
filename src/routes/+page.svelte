@@ -5,17 +5,28 @@
 </script>
 
 <!-- Navigation Header -->
-<nav class="navbar bg-base-100 shadow-lg sticky top-0 z-50 backdrop-blur supports-backdrop-blur:bg-base-100/90">
+<nav
+	class="navbar bg-base-100 shadow-lg sticky top-0 z-50 backdrop-blur supports-backdrop-blur:bg-base-100/90"
+>
 	<div class="navbar-start">
 		<div class="dropdown lg:hidden">
 			<button class="btn btn-ghost btn-circle" tabindex="0" type="button" aria-label="Menu">
-				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="h-5 w-5 stroke-current">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					fill="none"
+					viewBox="0 0 24 24"
+					class="h-5 w-5 stroke-current"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M4 6h16M4 12h16M4 18h16"
+					/>
 				</svg>
 			</button>
 			<ul class="menu menu-sm dropdown-content mt-3 w-52 rounded-box bg-base-100 p-2 shadow">
 				<li><a href="#features">Fitur</a></li>
-				<li><a href="#pricing">Harga</a></li>
 				<li><a href="#tech">Teknologi</a></li>
 				<li><a href="#cta">Mulai</a></li>
 			</ul>
@@ -24,7 +35,6 @@
 	</div>
 	<div class="navbar-center hidden lg:flex gap-3">
 		<a href="#features" class="btn btn-ghost normal-case">Fitur</a>
-		<a href="#pricing" class="btn btn-ghost normal-case">Harga</a>
 		<a href="#tech" class="btn btn-ghost normal-case">Teknologi</a>
 		<a href="#cta" class="btn btn-ghost normal-case">Mulai</a>
 	</div>
@@ -125,118 +135,126 @@
 	</div>
 </section>
 
-<!-- Pricing Section -->
-<section id="pricing" class="py-20 bg-base-200">
-	<div class="container mx-auto px-4">
-		<div class="text-center mb-16">
-			<h2 class="text-4xl font-bold text-base-content mb-4">Pilih Paket Sesuai Kebutuhan</h2>
-			<p class="text-lg text-base-content/70 max-w-2xl mx-auto">
-				Mulai dari papan publik gratis sampai kolaborasi skala perusahaan, tinggal pilih paket yang
-				sesuai ritme tim kamu.
-			</p>
+{#if false}
+	<!-- Pricing Section (hidden while backend not ready) -->
+	<section id="pricing" class="py-20 bg-base-200">
+		<div class="container mx-auto px-4">
+			<div class="text-center mb-16">
+				<h2 class="text-4xl font-bold text-base-content mb-4">Pilih Paket Sesuai Kebutuhan</h2>
+				<p class="text-lg text-base-content/70 max-w-2xl mx-auto">
+					Mulai dari papan publik gratis sampai kolaborasi skala perusahaan, tinggal pilih paket
+					yang sesuai ritme tim kamu.
+				</p>
+			</div>
+			<div class="mx-auto grid max-w-6xl gap-8 md:grid-cols-2 xl:grid-cols-3">
+				<div
+					class="card bg-base-100 shadow-xl border border-base-300/70 transition hover:-translate-y-1 hover:shadow-2xl"
+				>
+					<div class="card-body gap-6">
+						<div>
+							<h3 class="text-3xl font-bold text-base-content">Free</h3>
+							<p class="text-sm text-base-content/60">Rp0 selamanya</p>
+						</div>
+						<p class="text-sm text-base-content/70">
+							Untuk kreator solo dan komunitas yang butuh papan gratis tapi tetap rapi dan mudah
+							diajak berkolaborasi.
+						</p>
+						<ul class="space-y-3 text-sm text-base-content/80">
+							<li class="flex items-start gap-3">
+								<span class="text-primary" aria-hidden="true">✔</span>
+								<span>Buat papan publik tanpa batas dan bagikan link ke siapa pun</span>
+							</li>
+							<li class="flex items-start gap-3">
+								<span class="text-primary" aria-hidden="true">✔</span>
+								<span>Status tugas, komentar, dan aktivitas real-time</span>
+							</li>
+							<li class="flex items-start gap-3">
+								<span class="text-primary" aria-hidden="true">✔</span>
+								<span>Papan privat untuk tim internal kecil</span>
+							</li>
+							<li class="flex items-start gap-3">
+								<span class="text-primary" aria-hidden="true">✔</span>
+								<span>Maksimal 10 anggota dalam satu ruang kerja</span>
+							</li>
+							<li class="flex items-start gap-3">
+								<span class="text-primary" aria-hidden="true">✔</span>
+								<span>Belum mendukung organisasi dan proyek terpisah</span>
+							</li>
+						</ul>
+					</div>
+				</div>
+				<div
+					class="card shadow-2xl border-none bg-gradient-to-br from-primary via-primary/90 to-primary/80 text-primary-content transition hover:-translate-y-1 hover:shadow-2xl"
+				>
+					<div class="card-body gap-6">
+						<div class="flex items-center gap-3">
+							<div class="badge badge-secondary badge-lg">Terpopuler</div>
+							<p class="text-xs uppercase tracking-wide opacity-80">Tim bertumbuh</p>
+						</div>
+						<div>
+							<h3 class="text-3xl font-bold">Team</h3>
+							<p class="text-sm opacity-90">Rp50.000 / bulan</p>
+						</div>
+						<p class="text-sm opacity-90">
+							Skala kolaborasi dengan kontrol organisasi, cocok untuk startup atau tim lintas divisi
+							kecil.
+						</p>
+						<ul class="space-y-3 text-sm opacity-90">
+							<li class="flex items-start gap-3">
+								<span class="mt-0.5 text-secondary" aria-hidden="true">✔</span>
+								<span>Tambah hingga 5 organisasi</span>
+							</li>
+							<li class="flex items-start gap-3">
+								<span class="mt-0.5 text-secondary" aria-hidden="true">✔</span>
+								<span>Maksimal 5 proyek per organisasi</span>
+							</li>
+							<li class="flex items-start gap-3">
+								<span class="mt-0.5 text-secondary" aria-hidden="true">✔</span>
+								<span>Hingga 10 anggota aktif per proyek</span>
+							</li>
+							<li class="flex items-start gap-3">
+								<span class="mt-0.5 text-secondary" aria-hidden="true">✔</span>
+								<span>Papan privat dan publik tanpa batas</span>
+							</li>
+						</ul>
+					</div>
+				</div>
+				<div
+					class="card bg-base-100 shadow-xl border border-primary/60 transition hover:-translate-y-1 hover:shadow-2xl"
+				>
+					<div class="card-body gap-6">
+						<div>
+							<h3 class="text-3xl font-bold text-base-content">Enterprise</h3>
+							<p class="text-sm text-base-content/60">Rp150.000 / bulan</p>
+						</div>
+						<p class="text-sm text-base-content/70">
+							Untuk organisasi mapan yang butuh struktur lebih kompleks, dukungan prioritas, dan
+							skala anggotanya besar.
+						</p>
+						<ul class="space-y-3 text-sm text-base-content/80">
+							<li class="flex items-start gap-3">
+								<span class="text-primary" aria-hidden="true">✔</span>
+								<span>Tambah hingga 10 organisasi</span>
+							</li>
+							<li class="flex items-start gap-3">
+								<span class="text-primary" aria-hidden="true">✔</span>
+								<span>Hingga 100 anggota dalam satu organisasi</span>
+							</li>
+							<li class="flex items-start gap-3">
+								<span class="text-primary" aria-hidden="true">✔</span>
+								<span>Akses papan publik dan privat tanpa batas</span>
+							</li>
+							<li class="flex items-start gap-3">
+								<span class="text-primary" aria-hidden="true">✔</span>
+								<span>Dukungan onboarding dan pengaturan lanjutan</span>
+							</li>
+						</ul>
+					</div>
+				</div>
+			</div>
 		</div>
-		<div class="mx-auto grid max-w-6xl gap-8 md:grid-cols-2 xl:grid-cols-3">
-			<div class="card bg-base-100 shadow-xl border border-base-300/70 transition hover:-translate-y-1 hover:shadow-2xl">
-				<div class="card-body gap-6">
-					<div>
-						<h3 class="text-3xl font-bold text-base-content">Free</h3>
-						<p class="text-sm text-base-content/60">Rp0 selamanya</p>
-					</div>
-					<p class="text-sm text-base-content/70">
-						Untuk kreator solo dan komunitas yang butuh papan gratis tapi tetap rapi dan mudah diajak
-						berkolaborasi.
-					</p>
-					<ul class="space-y-3 text-sm text-base-content/80">
-						<li class="flex items-start gap-3">
-							<span class="text-primary" aria-hidden="true">✔</span>
-							<span>Buat papan publik tanpa batas dan bagikan link ke siapa pun</span>
-						</li>
-						<li class="flex items-start gap-3">
-							<span class="text-primary" aria-hidden="true">✔</span>
-							<span>Status tugas, komentar, dan aktivitas real-time</span>
-						</li>
-						<li class="flex items-start gap-3">
-							<span class="text-primary" aria-hidden="true">✔</span>
-							<span>Papan privat untuk tim internal kecil</span>
-						</li>
-						<li class="flex items-start gap-3">
-							<span class="text-primary" aria-hidden="true">✔</span>
-							<span>Maksimal 10 anggota dalam satu ruang kerja</span>
-						</li>
-						<li class="flex items-start gap-3">
-							<span class="text-primary" aria-hidden="true">✔</span>
-							<span>Belum mendukung organisasi dan proyek terpisah</span>
-						</li>
-					</ul>
-				</div>
-			</div>
-			<div class="card shadow-2xl border-none bg-gradient-to-br from-primary via-primary/90 to-primary/80 text-primary-content transition hover:-translate-y-1 hover:shadow-2xl">
-				<div class="card-body gap-6">
-					<div class="flex items-center gap-3">
-						<div class="badge badge-secondary badge-lg">Terpopuler</div>
-						<p class="text-xs uppercase tracking-wide opacity-80">Tim bertumbuh</p>
-					</div>
-					<div>
-						<h3 class="text-3xl font-bold">Team</h3>
-						<p class="text-sm opacity-90">Rp50.000 / bulan</p>
-					</div>
-					<p class="text-sm opacity-90">
-						Skala kolaborasi dengan kontrol organisasi, cocok untuk startup atau tim lintas divisi
-						kecil.
-					</p>
-					<ul class="space-y-3 text-sm opacity-90">
-						<li class="flex items-start gap-3">
-							<span class="mt-0.5 text-secondary" aria-hidden="true">✔</span>
-							<span>Tambah hingga 5 organisasi</span>
-						</li>
-						<li class="flex items-start gap-3">
-							<span class="mt-0.5 text-secondary" aria-hidden="true">✔</span>
-							<span>Maksimal 5 proyek per organisasi</span>
-						</li>
-						<li class="flex items-start gap-3">
-							<span class="mt-0.5 text-secondary" aria-hidden="true">✔</span>
-							<span>Hingga 10 anggota aktif per proyek</span>
-						</li>
-						<li class="flex items-start gap-3">
-							<span class="mt-0.5 text-secondary" aria-hidden="true">✔</span>
-							<span>Papan privat dan publik tanpa batas</span>
-						</li>
-					</ul>
-				</div>
-			</div>
-			<div class="card bg-base-100 shadow-xl border border-primary/60 transition hover:-translate-y-1 hover:shadow-2xl">
-				<div class="card-body gap-6">
-					<div>
-						<h3 class="text-3xl font-bold text-base-content">Enterprise</h3>
-						<p class="text-sm text-base-content/60">Rp150.000 / bulan</p>
-					</div>
-					<p class="text-sm text-base-content/70">
-						Untuk organisasi mapan yang butuh struktur lebih kompleks, dukungan prioritas, dan skala
-						anggotanya besar.
-					</p>
-					<ul class="space-y-3 text-sm text-base-content/80">
-						<li class="flex items-start gap-3">
-							<span class="text-primary" aria-hidden="true">✔</span>
-							<span>Tambah hingga 10 organisasi</span>
-						</li>
-						<li class="flex items-start gap-3">
-							<span class="text-primary" aria-hidden="true">✔</span>
-							<span>Hingga 100 anggota dalam satu organisasi</span>
-						</li>
-						<li class="flex items-start gap-3">
-							<span class="text-primary" aria-hidden="true">✔</span>
-							<span>Akses papan publik dan privat tanpa batas</span>
-						</li>
-						<li class="flex items-start gap-3">
-							<span class="text-primary" aria-hidden="true">✔</span>
-							<span>Dukungan onboarding dan pengaturan lanjutan</span>
-						</li>
-					</ul>
-				</div>
-			</div>
-		</div>
-	</div>
-</section>
+	</section>
+{/if}
 
 <!-- Tech Stack Section -->
 <section id="tech" class="py-20 bg-base-200">

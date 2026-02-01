@@ -1,6 +1,6 @@
 <script lang="ts">
 	import KanbanBoard from '$lib/components/KanbanBoard.svelte';
-	import type { PageData } from './$types';
+	import { page } from '$app/stores';
 	import {
 		getProjectTasks,
 		updateTaskStatus,
@@ -16,13 +16,21 @@
 	const STATUS_DRAG_TYPE = 'application/task-status-id';
 	const TASK_DRAG_TYPE = 'application/task-id';
 
-	let { data }: { data: PageData } = $props();
+	const projectId = $derived($page.params.id ?? '');
+	const statusFilter = $derived($page.url.searchParams.get('status') || undefined);
+	const data = $derived(await getProjectTasks({ projectId, statusId: statusFilter }));
 
 	// Reactive state
-	let project = $state(data.project);
-	let taskStatuses = $state(data.taskStatuses);
-	let tasks = $state(data.tasks);
+	let project = $state<typeof data.project | null>(null);
+	let taskStatuses = $state([] as typeof data.taskStatuses);
+	let tasks = $state([] as typeof data.tasks);
 	let kanbanKey = $state(0);
+
+	$effect(() => {
+		project = data.project;
+		taskStatuses = data.taskStatuses;
+		tasks = data.tasks;
+	});
 
 	// Form states
 	let showCreateStatus = $state(false);
@@ -54,8 +62,9 @@
 
 	async function handleDeleteProject() {
 		try {
+			if (!projectId || !project) return;
 			await deleteProject({
-				projectId: project.id,
+				projectId,
 				organizationId: project.organizationId ?? undefined
 			});
 			window.location.href = '/project';
@@ -175,8 +184,9 @@
 		statusDragEnd();
 
 		try {
+			if (!projectId) return;
 			await reorderStatuses({
-				projectId: project.id,
+				projectId,
 				orderedIds: currentStatuses.map((s) => s.id)
 			});
 		} catch {
@@ -190,8 +200,9 @@
 		if (!trimmedName) return;
 
 		try {
+			if (!projectId) return;
 			const createdStatus = await createStatus({
-				projectId: project.id,
+				projectId,
 				name: trimmedName
 			});
 
@@ -218,15 +229,16 @@
 		isCreatingTask = true;
 
 		try {
+			if (!projectId) return;
 			await createTask({
-				projectId: project.id,
+				projectId,
 				name: nameToSend,
 				description: descToSend || undefined,
 				statusId: statusToUse || undefined
 			});
 
 			// Refresh data to get new task
-			const result = await getProjectTasks({ projectId: project.id });
+			const result = await getProjectTasks({ projectId });
 			tasks = result.tasks;
 			taskStatuses = result.taskStatuses;
 			kanbanKey += 1;
@@ -267,6 +279,7 @@
 		if (!editTaskName.trim()) return;
 
 		try {
+			if (!projectId) return;
 			await updateTask({
 				taskId,
 				name: editTaskName.trim(),
@@ -274,7 +287,7 @@
 			});
 
 			// Refresh data to get updated task
-			const result = await getProjectTasks({ projectId: project.id });
+			const result = await getProjectTasks({ projectId });
 			tasks = result.tasks;
 			taskStatuses = result.taskStatuses;
 			kanbanKey += 1;
@@ -311,7 +324,8 @@
 		const status = taskStatuses.find((s) => s.id === statusId);
 		if (!status) return;
 
-		if (!confirm(`Hapus status "${status.name}"? Tugas dengan status ini tidak akan dihapus.`)) return;
+		if (!confirm(`Hapus status "${status.name}"? Tugas dengan status ini tidak akan dihapus.`))
+			return;
 
 		try {
 			await deleteTaskStatus({ statusId });

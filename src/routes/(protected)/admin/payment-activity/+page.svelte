@@ -1,12 +1,11 @@
 <script lang="ts">
 	import Chart from '$lib/components/Chart.svelte';
-	import type { PageData } from './$types';
+	import { getPaymentActivity } from './data.remote';
 
-	const props = $props<{ data: PageData }>();
-	const data = $derived(props.data);
+	const data = $derived(await getPaymentActivity());
 
 	const formatCurrency = (value: string | number | null | undefined, currency = 'USD') => {
-		const numericValue = typeof value === 'string' ? Number.parseFloat(value) : value ?? 0;
+		const numericValue = typeof value === 'string' ? Number.parseFloat(value) : (value ?? 0);
 		if (!Number.isFinite(numericValue)) {
 			return `${currency} 0.00`;
 		}
@@ -79,11 +78,7 @@
 						'rgba(251, 191, 36, 0.6)',
 						'rgba(248, 113, 113, 0.6)'
 					],
-					borderColor: [
-						'rgba(34, 197, 94, 1)',
-						'rgba(251, 191, 36, 1)',
-						'rgba(248, 113, 113, 1)'
-					],
+					borderColor: ['rgba(34, 197, 94, 1)', 'rgba(251, 191, 36, 1)', 'rgba(248, 113, 113, 1)'],
 					borderWidth: 1,
 					data: data.statusBreakdown.map((entry) => entry.count)
 				}
@@ -96,7 +91,9 @@
 			return null;
 		}
 
-		const labels = data.gatewayContribution.map((entry) => entry.name ?? entry.provider ?? 'Unknown');
+		const labels = data.gatewayContribution.map(
+			(entry) => entry.name ?? entry.provider ?? 'Unknown'
+		);
 		const revenues = data.gatewayContribution.map((entry) => Number.parseFloat(entry.revenue));
 		return {
 			labels,
@@ -139,7 +136,9 @@
 <div class="space-y-8">
 	<div>
 		<h1 class="text-2xl font-semibold">Payment Activity</h1>
-		<p class="text-sm text-base-content/70">Overview of recent payments, gateway performance, and revenue trends.</p>
+		<p class="text-sm text-base-content/70">
+			Overview of recent payments, gateway performance, and revenue trends.
+		</p>
 	</div>
 
 	<section class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -160,7 +159,11 @@
 			<p class="text-sm text-base-content/70">Monthly revenue for the last six months.</p>
 			<div class="mt-4 h-64">
 				{#if revenueTrendChartData}
-					<Chart type="line" data={revenueTrendChartData} options={{ responsive: true, maintainAspectRatio: false }} />
+					<Chart
+						type="line"
+						data={revenueTrendChartData}
+						options={{ responsive: true, maintainAspectRatio: false }}
+					/>
 				{:else}
 					<p class="text-sm text-base-content/60">No revenue data available.</p>
 				{/if}
@@ -172,7 +175,11 @@
 			<p class="text-sm text-base-content/70">Distribution of payment statuses.</p>
 			<div class="mt-4 h-64">
 				{#if statusBreakdownChartData}
-					<Chart type="doughnut" data={statusBreakdownChartData} options={{ responsive: true, maintainAspectRatio: false }} />
+					<Chart
+						type="doughnut"
+						data={statusBreakdownChartData}
+						options={{ responsive: true, maintainAspectRatio: false }}
+					/>
 				{:else}
 					<p class="text-sm text-base-content/60">No status data available.</p>
 				{/if}
@@ -186,7 +193,11 @@
 			<p class="text-sm text-base-content/70">Revenue generated per gateway.</p>
 			<div class="mt-4 h-64">
 				{#if gatewayContributionChartData}
-					<Chart type="bar" data={gatewayContributionChartData} options={{ responsive: true, maintainAspectRatio: false }} />
+					<Chart
+						type="bar"
+						data={gatewayContributionChartData}
+						options={{ responsive: true, maintainAspectRatio: false }}
+					/>
 				{:else}
 					<p class="text-sm text-base-content/60">No gateway contribution data available.</p>
 				{/if}
@@ -198,7 +209,15 @@
 			<p class="text-sm text-base-content/70">Success vs. failure counts for the past month.</p>
 			<div class="mt-4 h-64">
 				{#if gatewayPerformanceChartData}
-					<Chart type="bar" data={gatewayPerformanceChartData} options={{ responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }} />
+					<Chart
+						type="bar"
+						data={gatewayPerformanceChartData}
+						options={{
+							responsive: true,
+							maintainAspectRatio: false,
+							scales: { x: { stacked: true }, y: { stacked: true } }
+						}}
+					/>
 				{:else}
 					<p class="text-sm text-base-content/60">No gateway performance data available.</p>
 				{/if}
@@ -238,14 +257,20 @@
 								<td class="px-3 py-3">
 									<div class="flex flex-col">
 										<span class="text-sm font-medium">{payment.gatewayName ?? '—'}</span>
-										<span class="text-xs text-base-content/60">{payment.gatewayProvider ?? 'unknown'}</span>
+										<span class="text-xs text-base-content/60"
+											>{payment.gatewayProvider ?? 'unknown'}</span
+										>
 									</div>
 								</td>
 								<td class="px-3 py-3">{formatCurrency(payment.amount, payment.currency)}</td>
 								<td class="px-3 py-3">
-									<span class="rounded-full bg-base-300 px-2 py-1 text-xs font-medium uppercase">{statusLabels[payment.status] ?? payment.status}</span>
+									<span class="rounded-full bg-base-300 px-2 py-1 text-xs font-medium uppercase"
+										>{statusLabels[payment.status] ?? payment.status}</span
+									>
 								</td>
-								<td class="px-3 py-3 text-xs text-base-content/70">{formatDateTime(payment.createdAt)}</td>
+								<td class="px-3 py-3 text-xs text-base-content/70"
+									>{formatDateTime(payment.createdAt)}</td
+								>
 							</tr>
 						{/each}
 					{/if}
@@ -280,11 +305,17 @@
 								<td class="px-3 py-3">{formatCurrency(failure.amount, failure.currency)}</td>
 								<td class="px-3 py-3">
 									<div class="flex flex-col gap-1">
-										<span class="text-xs font-semibold text-error">{failure.errorCode ?? 'Unknown error'}</span>
-										<span class="text-xs text-base-content/70">{failure.errorMessage ?? 'No message provided.'}</span>
+										<span class="text-xs font-semibold text-error"
+											>{failure.errorCode ?? 'Unknown error'}</span
+										>
+										<span class="text-xs text-base-content/70"
+											>{failure.errorMessage ?? 'No message provided.'}</span
+										>
 									</div>
 								</td>
-								<td class="px-3 py-3 text-xs text-base-content/70">{formatDateTime(failure.updatedAt)}</td>
+								<td class="px-3 py-3 text-xs text-base-content/70"
+									>{formatDateTime(failure.updatedAt)}</td
+								>
 							</tr>
 						{/each}
 					{/if}

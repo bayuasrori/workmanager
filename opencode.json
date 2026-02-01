@@ -1,0 +1,9 @@
+{
+  "mcp": {
+    "svelte": {
+      "type": "remote",
+      "url": "https://mcp.svelte.dev/mcp"
+    }
+  },
+  "$schema": "https://opencode.ai/config.json"
+}

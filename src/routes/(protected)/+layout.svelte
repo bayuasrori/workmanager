@@ -2,10 +2,12 @@
 	import { onMount } from 'svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import { browser } from '$app/environment';
+	import { getLayoutData } from './layout.remote';
 
-	export let data;
-	let mobileOpen = false;
-	let sidebarOpen = false;
+	let { children } = $props();
+	const layoutData = $derived(await getLayoutData());
+	let mobileOpen = $state(false);
+	let sidebarOpen = $state(false);
 
 	const handleSidebarItemClick = (event: Event) => {
 		const target = event.target as HTMLElement | null;
@@ -85,7 +87,7 @@
 			<nav class="hidden lg:flex items-center gap-1">
 				<a
 					class="btn btn-ghost btn-sm rounded-lg transition-colors hover:bg-base-200/60"
-					href="/user/{data.user.id}">User</a
+					href="/user/{layoutData.user.id}">User</a
 				>
 				<a
 					class="btn btn-ghost btn-sm rounded-lg transition-colors hover:bg-base-200/60"
@@ -93,7 +95,7 @@
 				>
 			</nav>
 			<!-- User dropdown (desktop) -->
-			{#if data?.user}
+			{#if layoutData?.user}
 				<div class="dropdown dropdown-end hidden lg:block z-50">
 					<button
 						type="button"
@@ -104,7 +106,7 @@
 								class="bg-primary text-primary-content rounded-full w-8 h-8 flex items-center justify-center shadow-sm"
 							>
 								<span class="text-sm leading-none"
-									>{data.user.username?.[0]?.toUpperCase() || 'U'}</span
+									>{layoutData.user.username?.[0]?.toUpperCase() || 'U'}</span
 								>
 							</div>
 						</div>
@@ -121,7 +123,7 @@
 						>
 					</button>
 					<ul class="dropdown-content z-[60] menu p-2 shadow bg-base-100 rounded-box w-52">
-						<li><a href="/user/{data.user.id}">Profile {data.user.username}</a></li>
+						<li><a href="/user/{layoutData.user.id}">Profile {layoutData.user.username}</a></li>
 						<li><a href="/logout">Logout</a></li>
 					</ul>
 				</div>
@@ -158,7 +160,7 @@
 					<li>
 						<a
 							class="rounded-lg transition-colors"
-							href="/user/{data.user.id}"
+							href="/user/{layoutData.user.id}"
 							onclick={() => (mobileOpen = false)}>User</a
 						>
 					</li>
@@ -167,9 +169,9 @@
 							>Organization</a
 						>
 					</li>
-					{#if data?.user}
+					{#if layoutData?.user}
 						<li class="pt-2">
-							<span class="px-2 text-xs opacity-60">Signed in as {data.user.username}</span>
+							<span class="px-2 text-xs opacity-60">Signed in as {layoutData.user.username}</span>
 						</li>
 						<li class="pt-1">
 							<a
@@ -209,17 +211,22 @@
 				class="absolute left-0 top-0 h-full w-64 max-w-[calc(100vw-2rem)] shadow-2xl bg-base-200/95 backdrop-blur supports-[backdrop-filter]:bg-base-200/80"
 			>
 				<h2 id="mobile-sidebar-title" class="sr-only">Sidebar navigation</h2>
-				<Sidebar {data} on:click={handleSidebarItemClick} on:close={() => (sidebarOpen = false)} isMobile={true} />
+				<Sidebar
+					data={layoutData}
+					on:click={handleSidebarItemClick}
+					on:close={() => (sidebarOpen = false)}
+					isMobile={true}
+				/>
 			</div>
 		</div>
 	{/if}
 
 	<div class="flex flex-grow">
 		<div class="hidden lg:block flex-shrink-0">
-			<Sidebar {data} />
+			<Sidebar data={layoutData} />
 		</div>
 		<main class="flex-grow min-w-0 p-4">
-			<slot />
+			{@render children?.()}
 		</main>
 	</div>
 </div>

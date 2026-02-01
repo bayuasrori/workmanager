@@ -1,52 +1,50 @@
 <script lang="ts">
-	import type { PageData } from './$types';
 	import Chart from '$lib/components/Chart.svelte';
+	import { page } from '$app/stores';
+	import { getDashboardData } from './data.remote';
 
-	export let data: PageData;
+	const selectedProjectParam = $derived($page.url.searchParams.get('projectId'));
+	const hasProjectParam = $derived($page.url.searchParams.has('projectId'));
+	const data = $derived(
+		await getDashboardData({
+			projectId: selectedProjectParam ?? undefined,
+			hasProjectParam
+		})
+	);
 
-	let projects = data?.projects ?? [];
-	let tasksStatus = data?.tasks_status ?? [];
-	let taskCount = data?.taskCount ?? 0;
-	let userTasks = data?.userTasks ?? [];
-	let recentActivities = data?.recentActivities ?? [];
-	let selectedProjectId = data?.selectedProjectId ?? '';
-	let dataSelectedProjectId = selectedProjectId;
-	let projectName = selectedProjectId
-		? projects.find((project) => project.id === selectedProjectId)?.name ?? 'Proyek terpilih'
-		: 'Semua proyek';
-	let statusTotalCount = tasksStatus.reduce((sum, status) => sum + Number(status.count ?? 0), 0);
-	let tasksLink = selectedProjectId ? `/project/${selectedProjectId}/tasks` : '/tasks';
+	const projects = $derived(data.projects ?? []);
+	const tasksStatus = $derived(data.tasks_status ?? []);
+	const taskCount = $derived(data.taskCount ?? 0);
+	const userTasks = $derived(data.userTasks ?? []);
+	const recentActivities = $derived(data.recentActivities ?? []);
+	const dailyActivity = $derived(data.dailyActivity ?? []);
 
-	$: projects = data?.projects ?? [];
-	$: tasksStatus = data?.tasks_status ?? [];
-	$: taskCount = data?.taskCount ?? 0;
-	$: userTasks = data?.userTasks ?? [];
-	$: recentActivities = data?.recentActivities ?? [];
-	$: dailyActivity = data?.dailyActivity ?? [];
+	let selectedProjectId = $state('');
 
-	let chartData = {
-		labels: [] as string[],
-		datasets: [
-			{
-				label: 'Aktivitas Harian',
-				data: [] as number[],
-				backgroundColor: 'rgba(16, 185, 129, 0.5)',
-				borderColor: 'rgba(16, 185, 129, 1)',
-				borderWidth: 1
-			}
-		]
-	};
+	$effect(() => {
+		selectedProjectId = data.selectedProjectId ?? '';
+	});
 
-	$: {
-		if (dailyActivity) {
-			const labels = dailyActivity.map((d) => d.date);
-			const counts = dailyActivity.map((d) => d.count);
-			chartData = {
-				labels: labels,
+	const projectName = $derived(
+		selectedProjectId
+			? (projects.find((project) => project.id === selectedProjectId)?.name ?? 'Proyek terpilih')
+			: 'Semua proyek'
+	);
+
+	const statusTotalCount = $derived(
+		tasksStatus.reduce((sum, status) => sum + Number(status.count ?? 0), 0)
+	);
+
+	const tasksLink = $derived(selectedProjectId ? `/project/${selectedProjectId}/tasks` : '/tasks');
+
+	const chartData = $derived.by(() => {
+		if (!dailyActivity.length) {
+			return {
+				labels: [] as string[],
 				datasets: [
 					{
 						label: 'Aktivitas Harian',
-						data: counts,
+						data: [] as number[],
 						backgroundColor: 'rgba(16, 185, 129, 0.5)',
 						borderColor: 'rgba(16, 185, 129, 1)',
 						borderWidth: 1
@@ -54,23 +52,21 @@
 				]
 			};
 		}
-	}
-
-	$: {
-		const incomingId = data?.selectedProjectId ?? '';
-		if (incomingId !== dataSelectedProjectId) {
-			dataSelectedProjectId = incomingId;
-			selectedProjectId = incomingId;
-		}
-	}
-
-	$: projectName = selectedProjectId
-		? projects.find((project) => project.id === selectedProjectId)?.name ?? 'Proyek terpilih'
-		: 'Semua proyek';
-
-	$: statusTotalCount = tasksStatus.reduce((sum, status) => sum + Number(status.count ?? 0), 0);
-
-	$: tasksLink = selectedProjectId ? `/project/${selectedProjectId}/tasks` : '/tasks';
+		const labels = dailyActivity.map((entry) => entry.date);
+		const counts = dailyActivity.map((entry) => entry.count);
+		return {
+			labels,
+			datasets: [
+				{
+					label: 'Aktivitas Harian',
+					data: counts,
+					backgroundColor: 'rgba(16, 185, 129, 0.5)',
+					borderColor: 'rgba(16, 185, 129, 1)',
+					borderWidth: 1
+				}
+			]
+		};
+	});
 
 	const submitProjectFilter = (event: Event) => {
 		const target = event.currentTarget as HTMLSelectElement | null;
@@ -146,7 +142,7 @@
 							class="select select-bordered bg-emerald-50 border-emerald-300 text-emerald-900 focus:border-emerald-400 focus:outline-none focus:ring focus:ring-emerald-200"
 							name="projectId"
 							bind:value={selectedProjectId}
-							on:change={submitProjectFilter}
+							onchange={submitProjectFilter}
 						>
 							<option value="">Semua proyek</option>
 							{#each projects as project (project.id)}
@@ -211,7 +207,8 @@
 				<div class="card-body">
 					<h2 class="card-title text-emerald-900/80">Ringkasan Fokus</h2>
 					<p class="text-base text-emerald-900/80">
-						Periksa tugas yang mendekati tenggat atau yang sudah lama tidak diperbarui. Jaga momentum tim tetap tinggi.
+						Periksa tugas yang mendekati tenggat atau yang sudah lama tidak diperbarui. Jaga
+						momentum tim tetap tinggi.
 					</p>
 				</div>
 			</div>
@@ -225,9 +222,7 @@
 					<div class="card-body">
 						<div class="flex items-center justify-between gap-2">
 							<h2 class="card-title text-emerald-900">{status.task_status}</h2>
-							<span class="badge bg-emerald-100 text-emerald-800 border-emerald-200"
-								>Status</span
-							>
+							<span class="badge bg-emerald-100 text-emerald-800 border-emerald-200">Status</span>
 						</div>
 						<p class="text-4xl font-extrabold text-emerald-700">{Number(status.count ?? 0)}</p>
 						<div class="card-actions justify-end">

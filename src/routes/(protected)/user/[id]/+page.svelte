@@ -1,21 +1,63 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { getUserDetails, updateUser } from './data.remote';
 
-	type ActionData = {
-		message?: string;
-		values?: {
-			username?: string;
-			email?: string;
-			age?: string;
-		};
+	const userId = $derived($page.params.id ?? '');
+	const data = $derived(await getUserDetails({ userId }));
+
+	let username = $state('');
+	let email = $state('');
+	let age = $state('');
+	let oldPassword = $state('');
+	let newPassword = $state('');
+	let formMessage = $state('');
+
+	$effect(() => {
+		if (!data.user) return;
+		username = data.user.username ?? '';
+		email = data.user.email ?? '';
+		age = data.user.age ? String(data.user.age) : '';
+		oldPassword = '';
+		newPassword = '';
+	});
+
+	const handleSubmit = async (event: Event) => {
+		event.preventDefault();
+		if (!userId) return;
+		const trimmedUsername = username.trim();
+		const trimmedEmail = email.trim();
+		const parsedAge = age ? Number.parseInt(age, 10) : undefined;
+		if (!trimmedEmail) {
+			formMessage = 'Email diperlukan.';
+			return;
+		}
+		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+			formMessage = 'Format email tidak valid.';
+			return;
+		}
+		formMessage = '';
+		try {
+			await updateUser({
+				userId,
+				username: trimmedUsername,
+				email: trimmedEmail,
+				age: Number.isNaN(parsedAge) ? undefined : parsedAge,
+				oldPassword: oldPassword || undefined,
+				newPassword: newPassword || undefined
+			});
+			await goto('/user');
+		} catch (error) {
+			console.error('Gagal memperbarui pengguna', error);
+			formMessage = 'Gagal memperbarui pengguna. Pastikan nama pengguna dan email belum digunakan.';
+		}
 	};
-
-	export let data: PageData;
-	export let form: ActionData | undefined;
 </script>
 
 <div class="space-y-6 p-4">
-	<section class="rounded-3xl bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-700 px-6 py-6 shadow-xl text-emerald-50">
+	<section
+		class="rounded-3xl bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-700 px-6 py-6 shadow-xl text-emerald-50"
+	>
 		<div class="flex flex-col gap-2">
 			<h1 class="text-3xl font-extrabold">Perbarui Pengguna</h1>
 			<p class="text-sm text-emerald-100/80">
@@ -24,15 +66,17 @@
 		</div>
 	</section>
 
-	{#if form?.message}
-		<div class="rounded-2xl border border-amber-300 bg-amber-100/80 px-4 py-3 text-amber-900 shadow-sm">
-			<span>{form.message}</span>
+	{#if formMessage}
+		<div
+			class="rounded-2xl border border-amber-300 bg-amber-100/80 px-4 py-3 text-amber-900 shadow-sm"
+		>
+			<span>{formMessage}</span>
 		</div>
 	{/if}
 
 	{#if data.user}
 		<section class="rounded-3xl border border-emerald-200 bg-white shadow-lg p-6">
-			<form method="POST" class="space-y-5">
+			<form class="space-y-5" onsubmit={handleSubmit}>
 				<div class="grid gap-4 md:grid-cols-2">
 					<div>
 						<label class="label" for="username">
@@ -40,9 +84,8 @@
 						</label>
 						<input
 							type="text"
-							name="username"
 							id="username"
-							value={form?.values?.username ?? data.user.username}
+							bind:value={username}
 							class="input input-bordered w-full bg-emerald-50/60 border-emerald-200 focus:border-emerald-400"
 							required
 						/>
@@ -53,9 +96,8 @@
 						</label>
 						<input
 							type="email"
-							name="email"
 							id="email"
-							value={form?.values?.email ?? data.user.email}
+							bind:value={email}
 							class="input input-bordered w-full bg-emerald-50/60 border-emerald-200 focus:border-emerald-400"
 							required
 						/>
@@ -69,12 +111,13 @@
 						<input
 							type="number"
 							id="age"
-							name="age"
-							value={form?.values?.age ?? (data.user.age ?? '')}
+							bind:value={age}
 							class="input input-bordered w-full bg-emerald-50/60 border-emerald-200 focus:border-emerald-400"
 						/>
 					</div>
-					<div class="rounded-2xl border border-emerald-100 bg-emerald-50/60 px-4 py-3 text-sm text-emerald-900/80">
+					<div
+						class="rounded-2xl border border-emerald-100 bg-emerald-50/60 px-4 py-3 text-sm text-emerald-900/80"
+					>
 						<p class="font-semibold">Tips keamanan</p>
 						<ul class="mt-1 space-y-1 list-disc list-inside">
 							<li>Gunakan kata sandi minimal 8 karakter.</li>
@@ -89,8 +132,8 @@
 						</label>
 						<input
 							type="password"
-							name="oldPassword"
 							id="oldPassword"
+							bind:value={oldPassword}
 							class="input input-bordered w-full bg-white border-emerald-200 focus:border-emerald-400"
 						/>
 					</div>
@@ -100,17 +143,23 @@
 						</label>
 						<input
 							type="password"
-							name="newPassword"
 							id="newPassword"
+							bind:value={newPassword}
 							class="input input-bordered w-full bg-white border-emerald-200 focus:border-emerald-400"
 						/>
 					</div>
 				</div>
 				<div class="flex flex-wrap items-center justify-end gap-3 pt-2">
-					<a href="/user" class="btn border-none bg-emerald-100 text-emerald-800 hover:bg-emerald-200">
+					<a
+						href="/user"
+						class="btn border-none bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+					>
 						Batal
 					</a>
-					<button type="submit" class="btn bg-emerald-600 text-emerald-50 border-none hover:bg-emerald-700">
+					<button
+						type="submit"
+						class="btn bg-emerald-600 text-emerald-50 border-none hover:bg-emerald-700"
+					>
 						Simpan Perubahan
 					</button>
 				</div>

@@ -1,8 +1,7 @@
 import * as v from 'valibot';
 import { error } from '@sveltejs/kit';
-import { query, command } from '$app/server';
+import { query, command, getRequestEvent } from '$app/server';
 import { taskService, taskStatusService, projectService } from '$lib/server/service';
-
 
 // Query to refresh project data (tasks, statuses, project info)
 export const getProjectTasks = query(
@@ -11,12 +10,21 @@ export const getProjectTasks = query(
 		statusId: v.optional(v.string())
 	}),
 	async ({ projectId, statusId }) => {
+		const { locals } = getRequestEvent();
+		const userId = locals.user?.id;
+		if (!userId) {
+			error(401, 'Unauthorized');
+		}
+		const isMember = await projectService.isMember(projectId, userId);
+		if (!isMember) {
+			error(403, 'You are not a member of this project');
+		}
 		const tasks = statusId
 			? await taskService.getByProjectIdAndStatus(projectId, statusId)
 			: await taskService.getByProjectId(projectId);
 		const taskStatuses = await taskStatusService.getByProjectId(projectId);
 		const project = await projectService.getById(projectId);
-		
+
 		if (!project) {
 			error(404, 'Project not found');
 		}

@@ -1,16 +1,34 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+	import { goto } from '$app/navigation';
+	import { getImportBoardData, importBoard } from './data.remote';
 
-	export let data: PageData;
-	let boardUrl = '';
-	let organizationId = '';
+	const data = $derived(await getImportBoardData());
+	let boardUrl = $state('');
+	let organizationId = $state('');
+	let formMessage = $state('');
+
+	const handleSubmit = async (event: Event) => {
+		event.preventDefault();
+		const trimmed = boardUrl.trim();
+		if (!trimmed || !organizationId) return;
+		formMessage = '';
+		try {
+			const result = await importBoard({ boardUrl: trimmed, organizationId });
+			await goto(`/project/${result.projectId}/tasks`);
+		} catch (error) {
+			console.error('Gagal mengimpor papan', error);
+			formMessage = 'Gagal mengimpor papan. Periksa URL dan organisasi.';
+		}
+	};
 </script>
 
 <svelte:head>
 	<title>Impor Papan Publik</title>
 </svelte:head>
 
-<div class="flex min-h-[70vh] items-center justify-center bg-gradient-to-br from-emerald-50 via-emerald-100 to-amber-50 px-4 py-10">
+<div
+	class="flex min-h-[70vh] items-center justify-center bg-gradient-to-br from-emerald-50 via-emerald-100 to-amber-50 px-4 py-10"
+>
 	<div class="w-full max-w-3xl">
 		<div class="mb-6 text-center">
 			<p class="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-500">Impor Papan</p>
@@ -21,10 +39,18 @@
 		</div>
 		<div class="card shadow-2xl border border-emerald-200/70 bg-white/90 backdrop-blur">
 			<div class="card-body p-8">
-				<form method="POST" action="?/import" class="grid gap-6">
+				{#if formMessage}
+					<div
+						class="rounded-2xl border border-amber-300 bg-amber-100/80 px-4 py-3 text-amber-900 shadow-sm"
+					>
+						<span>{formMessage}</span>
+					</div>
+				{/if}
+				<form class="grid gap-6" onsubmit={handleSubmit}>
 					<div class="grid gap-2">
-						<label class="text-sm font-semibold uppercase tracking-wide text-emerald-900" for="board-url"
-							>URL atau Slug Papan Publik</label
+						<label
+							class="text-sm font-semibold uppercase tracking-wide text-emerald-900"
+							for="board-url">URL atau Slug Papan Publik</label
 						>
 						<input
 							id="board-url"
@@ -36,8 +62,9 @@
 						/>
 					</div>
 					<div class="grid gap-2">
-						<label class="text-sm font-semibold uppercase tracking-wide text-emerald-900" for="organization-select"
-							>Organisasi Tujuan</label
+						<label
+							class="text-sm font-semibold uppercase tracking-wide text-emerald-900"
+							for="organization-select">Organisasi Tujuan</label
 						>
 						<select
 							id="organization-select"
@@ -53,7 +80,9 @@
 						</select>
 					</div>
 					<div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-						<a href="/dashboard" class="btn btn-ghost text-emerald-600 hover:bg-emerald-100">Batal</a>
+						<a href="/dashboard" class="btn btn-ghost text-emerald-600 hover:bg-emerald-100"
+							>Batal</a
+						>
 						<button
 							type="submit"
 							class="btn btn-primary bg-emerald-600 border-none hover:bg-emerald-500"

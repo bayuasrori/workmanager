@@ -1,11 +1,27 @@
 <script lang="ts">
-	import type { ActionData, PageData } from './$types';
+	import { page } from '$app/stores';
+	import { addComment, getTaskDetails, removeComment, updateTask } from './data.remote';
 
-	export let data: PageData;
-	export let form: ActionData | undefined;
+	const taskId = $derived($page.params.id ?? '');
+	const data = $derived(await getTaskDetails({ taskId }));
 
-	const comments = data.comments ?? [];
-	const currentUserId = data.currentUser?.id ?? null;
+	const comments = $derived(data.comments ?? []);
+	const currentUserId = $derived(data.currentUser?.id ?? null);
+
+	let name = $state('');
+	let projectId = $state('');
+	let assigneeId = $state('');
+	let statusId = $state('');
+	let commentContent = $state('');
+	let commentError = $state('');
+
+	$effect(() => {
+		if (!data.task) return;
+		name = data.task.name;
+		projectId = data.task.projectId ?? data.projects[0]?.id ?? '';
+		assigneeId = data.task.assigneeId ?? '';
+		statusId = data.task.statusId ?? '';
+	});
 
 	const formatTimestamp = (value: string | Date) => {
 		const date = value instanceof Date ? value : new Date(value);
@@ -19,6 +35,53 @@
 	};
 
 	const getInitial = (name: string) => name?.[0]?.toUpperCase() ?? '?';
+
+	const handleUpdateTask = async (event: Event) => {
+		event.preventDefault();
+		if (!data.task || !projectId || !taskId) return;
+		const trimmedName = name.trim();
+		if (!trimmedName) return;
+		try {
+			await updateTask({
+				taskId,
+				name: trimmedName,
+				projectId,
+				assigneeId: assigneeId || undefined,
+				statusId: statusId || undefined
+			}).updates(getTaskDetails({ taskId }));
+		} catch (error) {
+			console.error('Gagal memperbarui task', error);
+			alert('Gagal memperbarui task. Silakan coba lagi.');
+		}
+	};
+
+	const handleAddComment = async (event: Event) => {
+		event.preventDefault();
+		const trimmed = commentContent.trim();
+		if (!trimmed) {
+			commentError = 'Komentar tidak boleh kosong.';
+			return;
+		}
+		if (!taskId) return;
+		commentError = '';
+		try {
+			await addComment({ taskId, content: trimmed }).updates(getTaskDetails({ taskId }));
+			commentContent = '';
+		} catch (error) {
+			console.error('Gagal menambahkan komentar', error);
+			commentError = 'Gagal menambahkan komentar. Silakan coba lagi.';
+		}
+	};
+
+	const handleRemoveComment = async (commentId: string) => {
+		if (!confirm('Hapus komentar ini?') || !taskId) return;
+		try {
+			await removeComment({ commentId }).updates(getTaskDetails({ taskId }));
+		} catch (error) {
+			console.error('Gagal menghapus komentar', error);
+			alert('Gagal menghapus komentar. Silakan coba lagi.');
+		}
+	};
 </script>
 
 <div class="p-4">
@@ -31,16 +94,15 @@
 						<p class="text-sm text-emerald-900/70">{data.task.name}</p>
 					</div>
 				</header>
-				<form method="POST" action="?/updateTask" class="mt-6 space-y-5">
+				<form class="mt-6 space-y-5" onsubmit={handleUpdateTask}>
 					<div>
 						<label class="label" for="taskName">
 							<span class="label-text text-emerald-900/80">Name</span>
 						</label>
 						<input
 							type="text"
-							name="name"
 							id="taskName"
-							value={data.task.name}
+							bind:value={name}
 							class="input input-bordered w-full bg-emerald-50/60 border-emerald-200 focus:border-emerald-400 focus:outline-none"
 						/>
 					</div>
@@ -50,14 +112,12 @@
 								<span class="label-text text-emerald-900/80">Project</span>
 							</label>
 							<select
-								name="projectId"
 								id="projectId"
+								bind:value={projectId}
 								class="select select-bordered w-full bg-emerald-50/60 border-emerald-200 focus:border-emerald-400"
 							>
 								{#each data.projects as project (project.id)}
-									<option value={project.id} selected={project.id === data.task.projectId}
-										>{project.name}</option
-									>
+									<option value={project.id}>{project.name}</option>
 								{/each}
 							</select>
 						</div>
@@ -66,14 +126,13 @@
 								<span class="label-text text-emerald-900/80">Assignee</span>
 							</label>
 							<select
-								name="assigneeId"
 								id="assigneeId"
+								bind:value={assigneeId}
 								class="select select-bordered w-full bg-emerald-50/60 border-emerald-200 focus:border-emerald-400"
 							>
+								<option value="">Tidak ada</option>
 								{#each data.users as user (user.id)}
-									<option value={user.id} selected={user.id === data.task.assigneeId}
-										>{user.username}</option
-									>
+									<option value={user.id}>{user.username}</option>
 								{/each}
 							</select>
 						</div>
@@ -83,24 +142,28 @@
 							<span class="label-text text-emerald-900/80">Status</span>
 						</label>
 						<select
-							name="statusId"
 							id="statusId"
+							bind:value={statusId}
 							class="select select-bordered w-full bg-emerald-50/60 border-emerald-200 focus:border-emerald-400"
 						>
+							<option value="">Tanpa status</option>
 							{#each data.taskStatuses as status (status.id)}
-								<option value={status.id} selected={status.id === data.task.statusId}
-									>{status.name}</option
-								>
+								<option value={status.id}>{status.name}</option>
 							{/each}
 						</select>
 					</div>
-					<button type="submit" class="btn bg-emerald-600 border-none hover:bg-emerald-700 text-emerald-50">
+					<button
+						type="submit"
+						class="btn bg-emerald-600 border-none hover:bg-emerald-700 text-emerald-50"
+					>
 						Perbarui Task
 					</button>
 				</form>
 			</section>
 
-			<section class="rounded-3xl border border-emerald-300 bg-emerald-50/70 shadow-lg p-0 overflow-hidden">
+			<section
+				class="rounded-3xl border border-emerald-300 bg-emerald-50/70 shadow-lg p-0 overflow-hidden"
+			>
 				<header class="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-4 text-emerald-50">
 					<h2 class="text-lg font-semibold flex items-center gap-2">
 						<span class="text-xl">💬</span>
@@ -143,41 +206,49 @@
 											</div>
 										</div>
 										{#if isOwn}
-											<form method="POST" action="?/deleteComment" class="ml-auto">
-												<input type="hidden" name="commentId" value={comment.id} />
-												<button type="submit" class="btn btn-xs border-none bg-emerald-500/30 text-emerald-50 hover:bg-emerald-500/50">
-													Hapus
-												</button>
-											</form>
+											<button
+												type="button"
+												class="btn btn-xs border-none bg-emerald-500/30 text-emerald-50 hover:bg-emerald-500/50"
+												onclick={() => handleRemoveComment(comment.id)}
+											>
+												Hapus
+											</button>
 										{/if}
 									</header>
-									<p class={`text-sm leading-relaxed whitespace-pre-wrap ${isOwn ? 'text-emerald-50/90' : 'text-emerald-900'}`}>
+									<p
+										class={`text-sm leading-relaxed whitespace-pre-wrap ${isOwn ? 'text-emerald-50/90' : 'text-emerald-900'}`}
+									>
 										{comment.content}
 									</p>
 								</article>
 							</div>
 						{/each}
 					{:else}
-						<p class="rounded-xl border border-dashed border-emerald-300 bg-emerald-100/60 px-4 py-6 text-sm text-emerald-900/70">
+						<p
+							class="rounded-xl border border-dashed border-emerald-300 bg-emerald-100/60 px-4 py-6 text-sm text-emerald-900/70"
+						>
 							Belum ada komentar. Mulai diskusi pertama Anda di bawah ini.
 						</p>
 					{/if}
 				</div>
 				<footer class="border-t border-emerald-200 bg-white px-5 py-4">
-					{#if form?.message}
+					{#if commentError}
 						<div class="alert alert-warning text-sm mb-3">
-							<span>{form.message}</span>
+							<span>{commentError}</span>
 						</div>
 					{/if}
-					<form method="POST" action="?/addComment" class="space-y-3">
+					<form class="space-y-3" onsubmit={handleAddComment}>
 						<textarea
-							name="content"
 							class="textarea textarea-bordered w-full min-h-[4.5rem] bg-emerald-50/60 border-emerald-200 focus:border-emerald-400 focus:outline-none"
 							placeholder="Tulis komentar atau update terbaru..."
+							bind:value={commentContent}
 							required
-						>{form?.values?.content ?? ''}</textarea>
+						></textarea>
 						<div class="flex items-center justify-end gap-2">
-							<button type="submit" class="btn bg-emerald-600 text-emerald-50 border-none hover:bg-emerald-700">
+							<button
+								type="submit"
+								class="btn bg-emerald-600 text-emerald-50 border-none hover:bg-emerald-700"
+							>
 								Kirim Komentar
 							</button>
 						</div>

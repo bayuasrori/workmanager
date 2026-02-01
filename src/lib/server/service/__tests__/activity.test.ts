@@ -57,7 +57,9 @@ describe('activityService.record', () => {
 		vi.useFakeTimers();
 		const now = new Date('2024-01-01T00:00:00Z');
 		vi.setSystemTime(now);
-		const randomUUIDSpy = vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue('activity-uuid');
+		const randomUUIDSpy = vi
+			.spyOn(globalThis.crypto, 'randomUUID')
+			.mockReturnValue('00000000-0000-0000-0000-000000000000');
 
 		const payload: ActivityRecordInput = {
 			projectId: 'proj-1',
@@ -73,7 +75,7 @@ describe('activityService.record', () => {
 		expect(insertMock).toHaveBeenCalledWith(expect.anything());
 		expect(valuesMock).toHaveBeenCalledTimes(1);
 		expect(valuesMock).toHaveBeenCalledWith({
-			id: 'activity-uuid',
+			id: '00000000-0000-0000-0000-000000000000',
 			projectId: 'proj-1',
 			taskId: 'task-1',
 			userId: 'user-1',

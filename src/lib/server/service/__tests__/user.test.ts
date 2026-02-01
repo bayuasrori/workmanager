@@ -39,7 +39,9 @@ describe('userService.create', () => {
 		vi.useFakeTimers();
 		const now = new Date('2024-03-15T12:00:00Z');
 		vi.setSystemTime(now);
-		const randomUUIDSpy = vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue('user-uuid');
+		const randomUUIDSpy = vi
+			.spyOn(globalThis.crypto, 'randomUUID')
+			.mockReturnValue('00000000-0000-0000-0000-000000000000');
 
 		await userService.create({
 			age: 27,
@@ -56,7 +58,7 @@ describe('userService.create', () => {
 			email: 'user@example.com',
 			passwordHash: 'hash',
 			isAdmin: true,
-			id: 'user-uuid',
+			id: '00000000-0000-0000-0000-000000000000',
 			createdAt: now
 		});
 

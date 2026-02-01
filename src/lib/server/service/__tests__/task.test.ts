@@ -46,11 +46,13 @@ import { taskService } from '../task';
 describe('taskService.create', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		insertValuesMock.mockResolvedValue([{ id: 'task-uuid' }]);
+		insertValuesMock.mockResolvedValue([{ id: '00000000-0000-0000-0000-000000000000' }]);
 	});
 
-		it('records activity when actorId and projectId are provided', async () => {
-			const randomUUIDSpy = vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue('task-uuid');
+	it('records activity when actorId and projectId are provided', async () => {
+		const randomUUIDSpy = vi
+			.spyOn(globalThis.crypto, 'randomUUID')
+			.mockReturnValue('00000000-0000-0000-0000-000000000000');
 
 		await taskService.create(
 			{
@@ -68,27 +70,25 @@ describe('taskService.create', () => {
 		expect(recordMock).toHaveBeenCalledWith({
 			projectId: 'proj-1',
 			userId: 'user-1',
-			taskId: 'task-uuid',
+			taskId: '00000000-0000-0000-0000-000000000000',
 			type: 'TASK_CREATED',
 			description: 'Task "Onboard user" dibuat',
-			metadata: { taskId: 'task-uuid' }
+			metadata: { taskId: '00000000-0000-0000-0000-000000000000' }
 		});
 
-			randomUUIDSpy.mockRestore();
-		});
+		randomUUIDSpy.mockRestore();
+	});
 
 	it('skips activity record when actorId is missing', async () => {
-		await taskService.create(
-			{
-				name: 'Task without actor',
-				description: 'No activity should be recorded',
-				statusId: 'status-1',
-				projectId: 'proj-1',
-				assigneeId: null,
-				startDate: null,
-				endDate: null
-			}
-		);
+		await taskService.create({
+			name: 'Task without actor',
+			description: 'No activity should be recorded',
+			statusId: 'status-1',
+			projectId: 'proj-1',
+			assigneeId: null,
+			startDate: null,
+			endDate: null
+		});
 
 		expect(recordMock).not.toHaveBeenCalled();
 	});

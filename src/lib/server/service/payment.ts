@@ -22,8 +22,13 @@ type RevenueSummary = {
 	total_payments: number;
 };
 
+type PaymentWithGateway = PaymentRecord & {
+	gatewayName: string | null;
+	gatewayProvider: string | null;
+};
+
 type PaymentDashboardData = {
-	recentPayments: PaymentRecord[];
+	recentPayments: PaymentWithGateway[];
 	revenueSummary: RevenueSummary;
 	monthlyRevenue: Array<{ month: string; revenue: string }>;
 	statusBreakdown: Array<{ status: PaymentStatus; count: number }>;
@@ -56,8 +61,6 @@ type PaymentDashboardData = {
 	}>;
 };
 
-
-
 const analyticsCache = new Map<string, { expiresAt: number; value: PaymentDashboardData }>();
 
 export const paymentService = {
@@ -73,7 +76,9 @@ export const paymentService = {
 	listWithGateway: async (limit = 50) => {
 		return await paymentRepository.listWithGateway(limit);
 	},
-	getDashboardAnalytics: async (options: PaymentDashboardOptions = {}): Promise<PaymentDashboardData> => {
+	getDashboardAnalytics: async (
+		options: PaymentDashboardOptions = {}
+	): Promise<PaymentDashboardData> => {
 		const cacheTtlMsRaw = options.cacheTtlMs;
 		const cacheTtlMs =
 			typeof cacheTtlMsRaw === 'number' && Number.isFinite(cacheTtlMsRaw)
@@ -100,10 +105,18 @@ export const paymentService = {
 
 		return dashboard;
 	},
-	create: async (input: Omit<typeof import('../db/schema').payment.$inferInsert, 'id' | 'status' | 'createdAt' | 'updatedAt'> & { status?: PaymentStatus }) => {
+	create: async (
+		input: Omit<
+			typeof import('../db/schema').payment.$inferInsert,
+			'id' | 'status' | 'createdAt' | 'updatedAt'
+		> & { status?: PaymentStatus }
+	) => {
 		return await paymentRepository.create(input);
 	},
-	update: async (id: string, input: Partial<Omit<typeof import('../db/schema').payment.$inferInsert, 'id'>>) => {
+	update: async (
+		id: string,
+		input: Partial<Omit<typeof import('../db/schema').payment.$inferInsert, 'id'>>
+	) => {
 		return await paymentRepository.update(id, input);
 	},
 	updateStatus: async (

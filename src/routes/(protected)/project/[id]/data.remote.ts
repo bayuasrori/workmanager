@@ -1,15 +1,30 @@
 import * as v from 'valibot';
 import { error } from '@sveltejs/kit';
-import { query, command } from '$app/server';
-import { projectService, taskStatusService } from '$lib/server/service';
+import { query, command, getRequestEvent } from '$app/server';
+import {
+	projectService,
+	taskStatusService,
+	publicBoardService,
+	organizationService
+} from '$lib/server/service';
 
 // Query to refresh project data (project, members, available users, task statuses)
 export const getProjectData = query(v.object({ projectId: v.string() }), async ({ projectId }) => {
+	const { locals } = getRequestEvent();
+	const userId = locals.user?.id;
+	if (!userId) {
+		error(401, 'Unauthorized');
+	}
+	const isMember = await projectService.isMember(projectId, userId);
+	if (!isMember) {
+		error(403, 'You are not a member of this project');
+	}
 	const result = await projectService.getProjectData(projectId);
 	if (!result) {
 		error(404, 'Project not found');
 	}
-	return result;
+	const organizations = await organizationService.getByMemberUserId(userId);
+	return { ...result, organizations };
 });
 
 // Command to update project details
@@ -53,5 +68,38 @@ export const deleteTaskStatus = command(
 	}),
 	async ({ statusId }) => {
 		await taskStatusService.delete(statusId);
+	}
+);
+
+// Command to convert project to public board
+export const makePublic = command(
+	v.object({
+		projectId: v.string()
+	}),
+	async ({ projectId }) => {
+		const result = await publicBoardService.convertFromProject(projectId);
+		if (!result) {
+			throw error(404, 'Project not found');
+		}
+		return { slug: result.slug };
+	}
+);
+
+// Command to create public board from existing project with user association
+export const makePublicForUser = command(
+	v.object({
+		projectId: v.string()
+	}),
+	async ({ projectId }) => {
+		const { locals } = getRequestEvent();
+		const userId = locals.user?.id;
+		if (!userId) {
+			throw error(401, 'Unauthorized');
+		}
+		const result = await publicBoardService.createFromProjectForUser(projectId, userId);
+		if (!result) {
+			throw error(404, 'Project not found');
+		}
+		return { slug: result.slug };
 	}
 );
