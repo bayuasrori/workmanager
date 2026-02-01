@@ -2,7 +2,6 @@ import * as v from 'valibot';
 import { command, getRequestEvent, query } from '$app/server';
 import { error, redirect } from '@sveltejs/kit';
 import { userService } from '$lib/server/service';
-import { verify, hash } from '@node-rs/argon2';
 
 const ensureAccess = (userId: string) => {
 	const { locals } = getRequestEvent();
@@ -53,6 +52,7 @@ export const updateUser = command(
 		let passwordHash = user.passwordHash;
 
 		if (newPassword) {
+			const { hash, verify } = await import('@node-rs/argon2');
 			if (!oldPassword) {
 				throw error(400, 'Old password is required to change password.');
 			}

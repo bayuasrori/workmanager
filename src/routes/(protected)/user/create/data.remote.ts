@@ -2,7 +2,6 @@ import * as v from 'valibot';
 import { command, getRequestEvent, query } from '$app/server';
 import { error, redirect } from '@sveltejs/kit';
 import { userService } from '$lib/server/service';
-import { hash } from '@node-rs/argon2';
 
 const requireAdmin = () => {
 	const { locals } = getRequestEvent();
@@ -29,6 +28,7 @@ export const createUser = command(
 	}),
 	async ({ username, age, email, password }) => {
 		requireAdmin();
+		const { hash } = await import('@node-rs/argon2');
 		const passwordHash = await hash(password, {
 			memoryCost: 19456,
 			timeCost: 2,
