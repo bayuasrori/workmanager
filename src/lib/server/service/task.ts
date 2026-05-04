@@ -2,6 +2,13 @@ import { taskRepository } from '../repositories';
 import { type Task } from '../db/schema';
 import { activityService } from './activity';
 
+function sanitizeTask(item: Record<string, unknown>) {
+	if (!item.assigneeId) item.assigneeId = null;
+	if (!item.statusId) item.statusId = null;
+	if (!item.projectId) item.projectId = null;
+	return item;
+}
+
 type TaskActivityOptions = {
 	actorId?: string | null;
 };
@@ -14,7 +21,8 @@ export const taskService = {
 		return await taskRepository.getAll();
 	},
 	create: async (item: Omit<Task, 'id'>, options?: TaskActivityOptions) => {
-		const result = await taskRepository.create(item);
+		const sanitized = sanitizeTask({ ...item } as Record<string, unknown>);
+		const result = await taskRepository.create(sanitized as Omit<Task, 'id'>);
 		const id = typeof result[0] === 'string' ? result[0] : result[0]?.id;
 		if (options?.actorId && item.projectId && id) {
 			await activityService.record({
@@ -29,11 +37,12 @@ export const taskService = {
 		return result;
 	},
 	update: async (id: string, item: Partial<Omit<Task, 'id'>>, options?: TaskActivityOptions) => {
+		const sanitized = sanitizeTask({ ...item } as Record<string, unknown>) as Partial<Omit<Task, 'id'>>;
 		let previous: Task | null = null;
 		if (options?.actorId) {
 			previous = (await taskRepository.getById(id)) ?? null;
 		}
-		const updatedRows = await taskRepository.update(id, item);
+		const updatedRows = await taskRepository.update(id, sanitized);
 		const updated = updatedRows[0];
 		if (options?.actorId && updated) {
 			const projectId = updated.projectId ?? previous?.projectId ?? null;

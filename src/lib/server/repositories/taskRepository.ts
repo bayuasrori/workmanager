@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { task, type Task } from '../db/schema';
-import { eq, and, count, sql } from 'drizzle-orm';
+import { eq, and, count, sql, isNull, or } from 'drizzle-orm';
 
 export const taskRepository = {
 	getById: async (id: string) => {
@@ -31,13 +31,19 @@ export const taskRepository = {
 	getByProjectId: async (projectId: string) => {
 		return await db.query.task.findMany({
 			where: eq(task.projectId, projectId),
-			with: { assignee: true, status: true }
+			with: {
+				assignee: true,
+				status: true
+			}
 		});
 	},
 	getByProjectIdAndStatus: async (projectId: string, statusId: string) => {
 		return await db.query.task.findMany({
 			where: and(eq(task.projectId, projectId), eq(task.statusId, statusId)),
-			with: { assignee: true, status: true }
+			with: {
+				assignee: true,
+				status: true
+			}
 		});
 	},
 	getUserTaskCount: async (userId: string) => {

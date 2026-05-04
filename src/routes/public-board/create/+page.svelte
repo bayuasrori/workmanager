@@ -3,6 +3,7 @@
 	import type { ActionData, PageData } from './$types';
 
 	let { form, data }: { form: ActionData | null; data: PageData } = $props();
+	let submitting = $state(false);
 </script>
 
 <div class="min-h-screen bg-base-100 py-8">
@@ -17,11 +18,22 @@
 
 				{#if form && typeof form === 'object' && 'message' in form}
 					<div class="alert alert-error mb-6">
+						<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
 						<span>{form.message}</span>
 					</div>
 				{/if}
 
-				<form method="post" action="?/create" use:enhance>
+				<form
+					method="post"
+					action="?/create"
+					use:enhance={() => {
+						submitting = true;
+						return async ({ update }) => {
+							await update();
+							submitting = false;
+						};
+					}}
+				>
 					<div class="form-control mb-4">
 						<label class="label" for="name">
 							<span class="label-text font-semibold">Nama Papan *</span>
@@ -34,6 +46,7 @@
 							class="input input-bordered w-full"
 							required
 							maxlength="100"
+							disabled={submitting}
 						/>
 						<div class="label">
 							<span class="label-text-alt"
@@ -52,6 +65,7 @@
 							placeholder="Jelaskan kegunaan papan ini (opsional)"
 							class="textarea textarea-bordered w-full h-24"
 							maxlength="500"
+							disabled={submitting}
 						></textarea>
 						<div class="label">
 							<span class="label-text-alt"
@@ -71,8 +85,15 @@
 					</div>
 
 					<div class="flex gap-4">
-						<button type="submit" class="btn btn-primary flex-1"> Buat Papan Publik </button>
-						<a href="/" class="btn btn-outline">Batal</a>
+						<button type="submit" class="btn btn-primary flex-1" disabled={submitting}>
+							{#if submitting}
+								<span class="loading loading-spinner loading-sm"></span>
+								Membuat...
+							{:else}
+								Buat Papan Publik
+							{/if}
+						</button>
+						<a href="/" class="btn btn-outline" disabled={submitting}>Batal</a>
 					</div>
 				</form>
 
