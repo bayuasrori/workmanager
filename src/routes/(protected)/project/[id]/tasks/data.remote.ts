@@ -15,6 +15,11 @@ export const getProjectTasks = query(
 		if (!userId) {
 			error(401, 'Unauthorized');
 		}
+		// Empty projectId happens during route teardown/navigation transitions —
+		// short-circuit instead of passing "" to a uuid column query.
+		if (!projectId) {
+			return { tasks: [], taskStatuses: [], project: null };
+		}
 		const isMember = await projectService.isMember(projectId, userId);
 		if (!isMember) {
 			error(403, 'You are not a member of this project');

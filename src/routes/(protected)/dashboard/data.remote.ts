@@ -1,5 +1,5 @@
 import * as v from 'valibot';
-import { query, getRequestEvent } from '$app/server';
+import { query, getRequestEvent, command } from '$app/server';
 import { redirect } from '@sveltejs/kit';
 import {
 	activityService,
@@ -7,6 +7,7 @@ import {
 	taskService,
 	taskStatusService
 } from '$lib/server/service';
+import { summarizeRecentActivity } from '$lib/server/service/activitySummary';
 
 type MemberProject = Awaited<ReturnType<typeof projectService.getByMemberUserId>>[number];
 
@@ -59,3 +60,14 @@ export const getDashboardData = query(
 		};
 	}
 );
+
+export const summarizeActivity = command(v.object({}), async () => {
+	const { locals } = getRequestEvent();
+	const userId = locals.user?.id;
+	if (!userId) {
+		redirect(302, '/login');
+	}
+	const recent = await activityService.getRecentForUser(userId, 20);
+	const summary = await summarizeRecentActivity(recent);
+	return { summary };
+});

@@ -3,9 +3,11 @@ import { type Task } from '../db/schema';
 import { activityService } from './activity';
 
 function sanitizeTask(item: Record<string, unknown>) {
-	if (!item.assigneeId) item.assigneeId = null;
-	if (!item.statusId) item.statusId = null;
-	if (!item.projectId) item.projectId = null;
+	// Only normalise keys that are explicitly present — a partial update like
+	// { statusId } must NOT null out projectId/assigneeId.
+	if ('assigneeId' in item && !item.assigneeId) item.assigneeId = null;
+	if ('statusId' in item && !item.statusId) item.statusId = null;
+	if ('projectId' in item && !item.projectId) item.projectId = null;
 	return item;
 }
 

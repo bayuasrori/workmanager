@@ -72,6 +72,20 @@
 					<span class="text-lg">🏠</span>
 					<span class="font-semibold tracking-wide">Dashboard</span>
 				</a>
+				<a
+					href="/timeline"
+					class="btn btn-sm w-full mt-2 justify-start gap-3 border-none bg-emerald-700 hover:bg-emerald-600 text-emerald-50 shadow-md"
+				>
+					<span class="text-lg">🗓️</span>
+					<span class="font-semibold tracking-wide">Timeline</span>
+				</a>
+				<a
+					href="/notes-import"
+					class="btn btn-sm w-full mt-2 justify-start gap-3 border-none bg-emerald-700 hover:bg-emerald-600 text-emerald-50 shadow-md"
+				>
+					<span class="text-lg">🤖</span>
+					<span class="font-semibold tracking-wide">Catatan → Task</span>
+				</a>
 				{#if data.user.isAdmin}
 					<a
 						href="/admin/dashboard"

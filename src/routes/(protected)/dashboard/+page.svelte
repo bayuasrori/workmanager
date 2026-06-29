@@ -1,7 +1,8 @@
 <script lang="ts">
 	import Chart from '$lib/components/Chart.svelte';
 	import { page } from '$app/stores';
-	import { getDashboardData } from './data.remote';
+	import { toasts } from '$lib/toast.svelte';
+	import { getDashboardData, summarizeActivity } from './data.remote';
 
 	const selectedProjectParam = $derived($page.url.searchParams.get('projectId'));
 	const hasProjectParam = $derived($page.url.searchParams.has('projectId'));
@@ -20,6 +21,23 @@
 	const dailyActivity = $derived(data.dailyActivity ?? []);
 
 	let selectedProjectId = $state('');
+
+	let aiSummary = $state('');
+	let summarizing = $state(false);
+
+	async function handleSummarize() {
+		if (summarizing) return;
+		summarizing = true;
+		try {
+			const { summary } = await summarizeActivity({});
+			aiSummary = summary;
+		} catch (error) {
+			console.error('Gagal merangkum aktivitas', error);
+			toasts.error('Gagal membuat ringkasan AI. Coba lagi.');
+		} finally {
+			summarizing = false;
+		}
+	}
 
 	$effect(() => {
 		selectedProjectId = data.selectedProjectId ?? '';
@@ -214,6 +232,37 @@
 			</div>
 		</div>
 	</div>
+
+	<section class="mt-8">
+		<div class="card bg-white shadow-lg border border-emerald-200">
+			<div class="card-body">
+				<div class="flex items-center justify-between gap-3 flex-wrap">
+					<h2 class="card-title text-emerald-900">
+						<span class="text-xl">🤖</span> Ringkasan Aktivitas (AI)
+					</h2>
+					<button
+						class="btn btn-sm bg-emerald-600 border-none hover:bg-emerald-700 text-emerald-50"
+						onclick={handleSummarize}
+						disabled={summarizing}
+					>
+						{#if summarizing}
+							<span class="loading loading-spinner loading-xs"></span>
+							Merangkum…
+						{:else}
+							Buat Ringkasan
+						{/if}
+					</button>
+				</div>
+				{#if aiSummary}
+					<p class="text-sm leading-relaxed text-emerald-900/80 mt-2">{aiSummary}</p>
+				{:else}
+					<p class="text-sm text-emerald-700/60 mt-2">
+						Klik “Buat Ringkasan” untuk merangkum aktivitas terbaru kamu lewat AI.
+					</p>
+				{/if}
+			</div>
+		</div>
+	</section>
 
 	{#if tasksStatus.length}
 		<div class="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">

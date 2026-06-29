@@ -48,10 +48,18 @@
 		"vitest": "^2.1.8"
 	},
 	"dependencies": {
+		"@ai-sdk/anthropic": "^4.0.1",
+		"@ai-sdk/openai-compatible": "^3.0.1",
+		"@ai-sdk/valibot": "^3.0.1",
+		"@fullcalendar/core": "^6.1.21",
+		"@fullcalendar/daygrid": "^6.1.21",
+		"@fullcalendar/list": "^6.1.21",
+		"@fullcalendar/timegrid": "^6.1.21",
 		"@libsql/client": "^0.14.0",
 		"@node-rs/argon2": "^2.0.2",
 		"@oslojs/crypto": "^1.0.1",
 		"@oslojs/encoding": "^1.1.0",
+		"ai": "^7.0.4",
 		"chart.js": "^4.5.0",
 		"drizzle-orm": "^0.40.0",
 		"pg": "^8.16.3",

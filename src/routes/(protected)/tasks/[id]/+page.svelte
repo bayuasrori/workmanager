@@ -1,27 +1,41 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { addComment, getTaskDetails, removeComment, updateTask } from './data.remote';
+	import { toasts } from '$lib/toast.svelte';
 
 	const taskId = $derived($page.params.id ?? '');
-	const data = $derived(await getTaskDetails({ taskId }));
+	// Guard empty taskId (e.g. during route teardown) so we don't query a uuid column with "".
+	const data = $derived(taskId ? await getTaskDetails({ taskId }) : null);
 
-	const comments = $derived(data.comments ?? []);
-	const currentUserId = $derived(data.currentUser?.id ?? null);
+	const comments = $derived(data?.comments ?? []);
+	const currentUserId = $derived(data?.currentUser?.id ?? null);
 
 	let name = $state('');
 	let projectId = $state('');
 	let assigneeId = $state('');
 	let statusId = $state('');
+	let startDate = $state('');
+	let endDate = $state('');
 	let commentContent = $state('');
 	let commentError = $state('');
 
 	$effect(() => {
-		if (!data.task) return;
+		if (!data?.task) return;
 		name = data.task.name;
 		projectId = data.task.projectId ?? data.projects[0]?.id ?? '';
 		assigneeId = data.task.assigneeId ?? '';
 		statusId = data.task.statusId ?? '';
+		startDate = toDateTimeLocal(data.task.startDate);
+		endDate = toDateTimeLocal(data.task.endDate);
 	});
+
+	const toDateTimeLocal = (value: Date | string | null | undefined): string => {
+		if (!value) return '';
+		const d = value instanceof Date ? value : new Date(value);
+		if (Number.isNaN(d.getTime())) return '';
+		const offset = d.getTimezoneOffset() * 60000;
+		return new Date(d.getTime() - offset).toISOString().slice(0, 16);
+	};
 
 	const formatTimestamp = (value: string | Date) => {
 		const date = value instanceof Date ? value : new Date(value);
@@ -38,7 +52,7 @@
 
 	const handleUpdateTask = async (event: Event) => {
 		event.preventDefault();
-		if (!data.task || !projectId || !taskId) return;
+		if (!data?.task || !projectId || !taskId) return;
 		const trimmedName = name.trim();
 		if (!trimmedName) return;
 		try {
@@ -47,11 +61,14 @@
 				name: trimmedName,
 				projectId,
 				assigneeId: assigneeId || undefined,
-				statusId: statusId || undefined
+				statusId: statusId || undefined,
+				startDate: startDate ? new Date(startDate) : undefined,
+				endDate: endDate ? new Date(endDate) : null
 			}).updates(getTaskDetails({ taskId }));
+			toasts.success('Task berhasil diperbarui.');
 		} catch (error) {
 			console.error('Gagal memperbarui task', error);
-			alert('Gagal memperbarui task. Silakan coba lagi.');
+			toasts.error('Gagal memperbarui task. Silakan coba lagi.');
 		}
 	};
 
@@ -67,9 +84,11 @@
 		try {
 			await addComment({ taskId, content: trimmed }).updates(getTaskDetails({ taskId }));
 			commentContent = '';
+			toasts.success('Komentar ditambahkan.');
 		} catch (error) {
 			console.error('Gagal menambahkan komentar', error);
 			commentError = 'Gagal menambahkan komentar. Silakan coba lagi.';
+			toasts.error('Gagal menambahkan komentar. Silakan coba lagi.');
 		}
 	};
 
@@ -77,15 +96,16 @@
 		if (!confirm('Hapus komentar ini?') || !taskId) return;
 		try {
 			await removeComment({ commentId }).updates(getTaskDetails({ taskId }));
+			toasts.success('Komentar dihapus.');
 		} catch (error) {
 			console.error('Gagal menghapus komentar', error);
-			alert('Gagal menghapus komentar. Silakan coba lagi.');
+			toasts.error('Gagal menghapus komentar. Silakan coba lagi.');
 		}
 	};
 </script>
 
 <div class="p-4">
-	{#if data.task}
+	{#if data?.task}
 		<div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
 			<section class="rounded-3xl border border-emerald-200 bg-white shadow-lg p-6">
 				<header class="pb-4 border-b border-emerald-100 flex items-start justify-between gap-4">
@@ -151,6 +171,30 @@
 								<option value={status.id}>{status.name}</option>
 							{/each}
 						</select>
+					</div>
+					<div class="grid gap-4 md:grid-cols-2">
+						<div>
+							<label class="label" for="startDate">
+								<span class="label-text text-emerald-900/80">Tanggal Mulai</span>
+							</label>
+							<input
+								type="datetime-local"
+								id="startDate"
+								bind:value={startDate}
+								class="input input-bordered w-full bg-emerald-50/60 border-emerald-200 focus:border-emerald-400 focus:outline-none"
+							/>
+						</div>
+						<div>
+							<label class="label" for="endDate">
+								<span class="label-text text-emerald-900/80">Tanggal Selesai</span>
+							</label>
+							<input
+								type="datetime-local"
+								id="endDate"
+								bind:value={endDate}
+								class="input input-bordered w-full bg-emerald-50/60 border-emerald-200 focus:border-emerald-400 focus:outline-none"
+							/>
+						</div>
 					</div>
 					<button
 						type="submit"

@@ -10,12 +10,13 @@
 	} from './data.remote';
 
 	const projectId = $derived($page.params.id ?? '');
-	const data = $derived(await getProjectData({ projectId }));
+	// Guard empty projectId (e.g. during route teardown) so we don't query a uuid column with "".
+	const data = $derived(projectId ? await getProjectData({ projectId }) : null);
 
-	const project = $derived(data.project);
-	const projectMembers = $derived(data.projectMembers ?? []);
-	const availableUsers = $derived(data.availableUsers ?? []);
-	const taskStatuses = $derived(data.taskStatuses ?? []);
+	const project = $derived(data?.project);
+	const projectMembers = $derived(data?.projectMembers ?? []);
+	const availableUsers = $derived(data?.availableUsers ?? []);
+	const taskStatuses = $derived(data?.taskStatuses ?? []);
 
 	// Form states
 	let projectName = $state('');
@@ -23,6 +24,7 @@
 	let selectedUserId = $state('');
 
 	$effect(() => {
+		if (!data?.project) return;
 		projectName = data.project.name;
 		organizationId = data.project.organizationId ?? '';
 	});
@@ -96,7 +98,7 @@
 
 	// Make project public
 	async function handleMakePublic() {
-		if (!projectId || project.isPublic) {
+		if (!projectId || !project || project.isPublic) {
 			alert('Proyek ini sudah public!');
 			return;
 		}
@@ -153,7 +155,7 @@
 			<p class="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-500">
 				Pengaturan proyek
 			</p>
-			<h1 class="mt-2 text-4xl font-extrabold text-emerald-900">{project.name}</h1>
+			<h1 class="mt-2 text-4xl font-extrabold text-emerald-900">{project?.name}</h1>
 			<p class="mt-3 text-base text-emerald-800/70">
 				Perbarui detail proyek dan atur siapa saja yang dapat berkolaborasi di dalamnya.
 			</p>
@@ -196,7 +198,7 @@
 									class="select select-bordered w-full border-emerald-200 focus:border-emerald-400 focus:ring focus:ring-emerald-100"
 								>
 									<option value="">Tanpa organisasi (opsional)</option>
-									{#each data.organizations as org (org.id)}
+									{#each data?.organizations ?? [] as org (org.id)}
 										<option value={org.id}>{org.name}</option>
 									{/each}
 								</select>
@@ -211,7 +213,7 @@
 									>Kembali</a
 								>
 								<div class="flex gap-2">
-									{#if !project.isPublic}
+									{#if !project?.isPublic}
 										<button
 											type="button"
 											class="btn btn-accent border-none hover:bg-accent/80"
@@ -227,7 +229,7 @@
 										</button>
 									{:else}
 										<a
-											href={`/public-board/${project.slug}`}
+											href={`/public-board/${project?.slug}`}
 											target="_blank"
 											class="btn btn-outline btn-accent hover:bg-accent/10"
 										>

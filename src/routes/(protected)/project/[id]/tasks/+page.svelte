@@ -18,19 +18,18 @@
 
 	const projectId = $derived($page.params.id ?? '');
 	const statusFilter = $derived($page.url.searchParams.get('status') || undefined);
-	const data = $derived(await getProjectTasks({ projectId, statusId: statusFilter }));
+	// Guard empty projectId (e.g. during route teardown) so we don't query a uuid column with "".
+	const data = $derived(projectId ? await getProjectTasks({ projectId, statusId: statusFilter }) : null);
 
-	// Reactive state
-	let project = $state<typeof data.project | null>(null);
-	let taskStatuses = $state([] as typeof data.taskStatuses);
-	let tasks = $state([] as typeof data.tasks);
+	// Local override state for optimistic updates; null = fall back to server data
+	let localProject = $state<NonNullable<typeof data>['project'] | null>(null);
+	let localTaskStatuses = $state<NonNullable<typeof data>['taskStatuses'] | null>(null);
+	let localTasks = $state<NonNullable<typeof data>['tasks'] | null>(null);
 	let kanbanKey = $state(0);
 
-	$effect(() => {
-		project = data.project;
-		taskStatuses = data.taskStatuses;
-		tasks = data.tasks;
-	});
+	const project = $derived(localProject ?? data?.project ?? null);
+	const taskStatuses = $derived(localTaskStatuses ?? data?.taskStatuses ?? []);
+	const tasks = $derived(localTasks ?? data?.tasks ?? []);
 
 	// Form states
 	let showCreateStatus = $state(false);
@@ -109,29 +108,25 @@
 		}
 		const taskId = transfer?.getData(TASK_DRAG_TYPE) || transfer?.getData('text/plain');
 		if (taskId) {
-			// Optimistically update the task status
-			const taskIndex = tasks.findIndex((t) => t.id === taskId);
+			const current = localTasks ?? data?.tasks ?? [];
+			const taskIndex = current.findIndex((t) => t.id === taskId);
 			let oldStatusId: string | null | undefined;
 			if (taskIndex !== -1) {
-				oldStatusId = tasks[taskIndex]?.statusId;
-				tasks[taskIndex] = { ...tasks[taskIndex], statusId: newStatusId };
-				tasks = [...tasks];
-				kanbanKey += 1;
+				oldStatusId = current[taskIndex]?.statusId;
+				const next = [...current];
+				next[taskIndex] = { ...next[taskIndex], statusId: newStatusId };
+				localTasks = next; // optimistic until server confirms
 			}
 
 			try {
-				// Use remote function to update task status
-				await updateTaskStatus({
-					taskId,
-					newStatusId
-				});
+				await updateTaskStatus({ taskId, newStatusId }).updates(
+					getProjectTasks({ projectId, statusId: statusFilter })
+				);
+				// server is now source of truth — drop the optimistic override
+				localTasks = null;
 			} catch {
-				// If request failed, revert the optimistic update
-				if (taskIndex !== -1 && oldStatusId != null) {
-					tasks[taskIndex] = { ...tasks[taskIndex], statusId: oldStatusId };
-					tasks = [...tasks];
-					kanbanKey += 1;
-				}
+				// revert to pre-optimistic state
+				localTasks = taskIndex !== -1 && oldStatusId != null ? current : null;
 			}
 		}
 	}
@@ -180,7 +175,7 @@
 		const previous = [...currentStatuses];
 		const [moved] = currentStatuses.splice(fromIndex, 1);
 		currentStatuses.splice(toIndex, 0, moved);
-		taskStatuses = currentStatuses;
+		localTaskStatuses = currentStatuses;
 		statusDragEnd();
 
 		try {
@@ -191,7 +186,7 @@
 			});
 		} catch {
 			// Revert on error
-			taskStatuses = previous;
+			localTaskStatuses = previous;
 		}
 	}
 
@@ -208,7 +203,7 @@
 
 			const updatedStatuses = [...taskStatuses, createdStatus];
 			updatedStatuses.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-			taskStatuses = updatedStatuses;
+			localTaskStatuses = updatedStatuses;
 			kanbanKey += 1;
 			newStatusName = '';
 			showCreateStatus = false;
@@ -235,12 +230,10 @@
 				name: nameToSend,
 				description: descToSend || undefined,
 				statusId: statusToUse || undefined
-			});
+			}).updates(getProjectTasks({ projectId, statusId: statusFilter }));
 
-			// Refresh data to get new task
-			const result = await getProjectTasks({ projectId });
-			tasks = result.tasks;
-			taskStatuses = result.taskStatuses;
+			localTasks = null;
+			localTaskStatuses = null;
 			kanbanKey += 1;
 			cancelCreateTask();
 		} catch (error) {
@@ -284,12 +277,10 @@
 				taskId,
 				name: editTaskName.trim(),
 				description: editTaskDescription.trim() || undefined
-			});
+			}).updates(getProjectTasks({ projectId, statusId: statusFilter }));
 
-			// Refresh data to get updated task
-			const result = await getProjectTasks({ projectId });
-			tasks = result.tasks;
-			taskStatuses = result.taskStatuses;
+			localTasks = null;
+			localTaskStatuses = null;
 			kanbanKey += 1;
 			cancelEditTask();
 		} catch (error) {
@@ -304,9 +295,9 @@
 
 		if (!confirm(`Hapus tugas "${task.name}"? Ini tidak bisa dibatalkan.`)) return;
 
-		const prev = [...tasks];
-		tasks = prev.filter((t) => t.id !== taskId);
-		tasks = [...tasks];
+		const base = localTasks ?? data?.tasks ?? [];
+		const prev = [...base];
+		localTasks = prev.filter((t) => t.id !== taskId);
 		kanbanKey += 1;
 
 		try {
@@ -314,8 +305,7 @@
 		} catch (error) {
 			console.error('Failed to delete task', error);
 			alert('Gagal menghapus tugas. Silakan coba lagi.');
-			tasks = prev;
-			tasks = [...tasks];
+			localTasks = prev;
 			kanbanKey += 1;
 		}
 	}
@@ -329,7 +319,9 @@
 
 		try {
 			await deleteTaskStatus({ statusId });
-			taskStatuses = taskStatuses.filter((s) => s.id !== statusId);
+			localTaskStatuses = (localTaskStatuses ?? data?.taskStatuses ?? []).filter(
+				(s) => s.id !== statusId
+			);
 			kanbanKey += 1;
 		} catch (error) {
 			console.error('Failed to delete status', error);

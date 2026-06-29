@@ -13,6 +13,11 @@ export const getTaskDetails = query(
 		taskId: v.string()
 	}),
 	async ({ taskId }) => {
+		// Empty taskId happens during route teardown/navigation transitions —
+		// short-circuit instead of passing "" to a uuid column query.
+		if (!taskId) {
+			return { task: null, projects: [], users: [], taskStatuses: [], comments: [], currentUser: null };
+		}
 		const task = await taskService.getById(taskId);
 		const projects = await projectService.getAll();
 		const users = await userService.getAll();
@@ -41,13 +46,22 @@ export const updateTask = command(
 		name: v.pipe(v.string(), v.nonEmpty()),
 		projectId: v.string(),
 		assigneeId: v.optional(v.string()),
-		statusId: v.optional(v.string())
+		statusId: v.optional(v.string()),
+		startDate: v.optional(v.union([v.date(), v.null()])),
+		endDate: v.optional(v.union([v.date(), v.null()]))
 	}),
-	async ({ taskId, name, projectId, assigneeId, statusId }) => {
+	async ({ taskId, name, projectId, assigneeId, statusId, startDate, endDate }) => {
 		const { locals } = getRequestEvent();
 		await taskService.update(
 			taskId,
-			{ name, projectId, assigneeId, statusId },
+			{
+				name,
+				projectId,
+				assigneeId,
+				statusId,
+				...(startDate !== undefined ? { startDate } : {}),
+				...(endDate !== undefined ? { endDate } : {})
+			},
 			{ actorId: locals.user?.id }
 		);
 		return { success: true };

@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { task, type Task } from '../db/schema';
+import { task, taskComment, activity, type Task } from '../db/schema';
 import { eq, and, count, sql, isNull, or } from 'drizzle-orm';
 
 export const taskRepository = {
@@ -25,8 +25,12 @@ export const taskRepository = {
 		return updatedRows;
 	},
 	delete: async (id: string) => {
-		const result = await db.delete(task).where(eq(task.id, id));
-		return result;
+		// Cascade dependents first (activity & comments reference task.id via FK w/o ON DELETE CASCADE).
+		return await db.transaction(async (tx) => {
+			await tx.delete(taskComment).where(eq(taskComment.taskId, id));
+			await tx.delete(activity).where(eq(activity.taskId, id));
+			return await tx.delete(task).where(eq(task.id, id));
+		});
 	},
 	getByProjectId: async (projectId: string) => {
 		return await db.query.task.findMany({

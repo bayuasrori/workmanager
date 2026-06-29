@@ -1,5 +1,14 @@
 import { db } from '../db';
-import { project, projectMember, task, task_status, taskComment, user, type Project } from '../db/schema';
+import {
+	project,
+	projectMember,
+	task,
+	task_status,
+	taskComment,
+	activity,
+	user,
+	type Project
+} from '../db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 
 export const projectRepository = {
@@ -89,7 +98,9 @@ removeMember: async (projectId: string, userId: string) => {
 			// Gather task IDs in this project
 			const tasks = await tx.select({ id: task.id }).from(task).where(eq(task.projectId, id));
 			const taskIds = tasks.map((t) => t.id);
-			// Delete task comments first (FK -> task)
+			// Delete activity rows (reference project + task) first
+			await tx.delete(activity).where(eq(activity.projectId, id));
+			// Delete task comments (FK -> task)
 			if (taskIds.length > 0) {
 				await tx.delete(taskComment).where(inArray(taskComment.taskId, taskIds));
 			}

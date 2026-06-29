@@ -1,5 +1,4 @@
 import { hash, verify } from '@node-rs/argon2';
-import { encodeBase32LowerCase } from '@oslojs/encoding';
 import { fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import * as auth from '$lib/server/auth';
@@ -33,20 +32,31 @@ export const actions: Actions = {
 		const username = formData.get('username');
 		const password = formData.get('password');
 
+		const values = { username: typeof username === 'string' ? username : '' };
+
 		if (!validateUsername(username)) {
 			return fail(400, {
-				message: 'Nama pengguna tidak valid (minimal 3, maksimal 31 karakter, hanya huruf atau angka).'
+				intent: 'login',
+				fieldErrors: {
+					username:
+						'Nama pengguna tidak valid (minimal 3, maksimal 31 karakter, hanya huruf atau angka).'
+				},
+				values
 			});
 		}
 		if (!validatePassword(password)) {
-			return fail(400, { message: 'Kata sandi tidak valid (minimal 6, maksimal 255 karakter).' });
+			return fail(400, {
+				intent: 'login',
+				fieldErrors: { password: 'Kata sandi tidak valid (minimal 6, maksimal 255 karakter).' },
+				values
+			});
 		}
 
 		const results = await db.select().from(table.user).where(eq(table.user.username, username));
 
 		const existingUser = results.at(0);
 		if (!existingUser) {
-			return fail(400, { message: 'Nama pengguna atau kata sandi salah.' });
+			return fail(400, { intent: 'login', message: 'Nama pengguna atau kata sandi salah.', values });
 		}
 
 		const validPassword = await verify(existingUser.passwordHash, password, {
@@ -56,7 +66,7 @@ export const actions: Actions = {
 			parallelism: 1
 		});
 		if (!validPassword) {
-			return fail(400, { message: 'Nama pengguna atau kata sandi salah.' });
+			return fail(400, { intent: 'login', message: 'Nama pengguna atau kata sandi salah.', values });
 		}
 
 		const sessionToken = auth.generateSessionToken();
@@ -73,20 +83,40 @@ export const actions: Actions = {
 		const email = formData.get('email');
 		const password = formData.get('password');
 
+		const values = {
+			username: typeof username === 'string' ? username : '',
+			email: typeof email === 'string' ? email : ''
+		};
+
 		if (!validateUsername(username)) {
-			return fail(400, { message: 'Nama pengguna tidak valid.' });
+			return fail(400, {
+				intent: 'register',
+				fieldErrors: {
+					username:
+						'Nama pengguna tidak valid (minimal 3, maksimal 31 karakter, hanya huruf atau angka).'
+				},
+				values
+			});
 		}
 		if (!validateEmail(email)) {
-			return fail(400, { message: 'Email tidak valid.' });
+			return fail(400, {
+				intent: 'register',
+				fieldErrors: { email: 'Email tidak valid.' },
+				values
+			});
 		}
 		if (!validatePassword(password)) {
-			return fail(400, { message: 'Kata sandi tidak valid.' });
+			return fail(400, {
+				intent: 'register',
+				fieldErrors: { password: 'Kata sandi tidak valid (minimal 6, maksimal 255 karakter).' },
+				values
+			});
 		}
 
 		const normalizedEmail = (email as string).trim().toLowerCase();
 		const existingEmail = await db.select().from(table.user).where(eq(table.user.email, normalizedEmail));
 		if (existingEmail.length > 0) {
-			return fail(400, { message: 'Email sudah terdaftar.' });
+			return fail(400, { intent: 'register', message: 'Email sudah terdaftar.', values });
 		}
 
 		const userId = generateUserId();
@@ -108,7 +138,7 @@ export const actions: Actions = {
 			await ensureDefaultWorkspaceForUser(userId, username as string);
 		} catch(e) {
 			console.error(e);
-			return fail(500, { message: 'Terjadi kesalahan.' });
+			return fail(500, { intent: 'register', message: 'Terjadi kesalahan saat mendaftar. Coba lagi.', values });
 		}
 		return redirect(302, '/dashboard');
 	}

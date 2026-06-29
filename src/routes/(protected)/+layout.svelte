@@ -87,6 +87,10 @@
 			<nav class="hidden lg:flex items-center gap-1">
 				<a
 					class="btn btn-ghost btn-sm rounded-lg transition-colors hover:bg-base-200/60"
+					href="/timeline">Timeline</a
+				>
+				<a
+					class="btn btn-ghost btn-sm rounded-lg transition-colors hover:bg-base-200/60"
 					href="/user/{layoutData.user.id}">User</a
 				>
 				<a
@@ -157,6 +161,9 @@
 				class="lg:hidden absolute right-2 top-full mt-2 w-64 max-w-[calc(100vw-1.5rem)] rounded-xl shadow-xl border border-base-300 bg-base-100/90 backdrop-blur supports-[backdrop-filter]:bg-base-100/80 z-50"
 			>
 				<ul class="menu menu-sm p-2">
+					<li>
+						<a class="rounded-lg transition-colors" href="/timeline" onclick={() => (mobileOpen = false)}>Timeline</a>
+					</li>
 					<li>
 						<a
 							class="rounded-lg transition-colors"
