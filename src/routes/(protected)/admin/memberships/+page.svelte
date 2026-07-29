@@ -7,6 +7,8 @@
 	let grantPlan = $state('pro');
 	let grantMonths = $state(1);
 	let grantSeats = $state(3);
+	let grantOpen = $state(false);
+	let feedback = $state<string | null>(null);
 	let query_ = $state('');
 
 	const filtered = $derived(
@@ -34,16 +36,29 @@
 			return;
 		}
 		try {
+			const user = data.rows.find((r) => r.id === grantUserId);
 			await grantMembership({
 				userId: grantUserId,
 				membershipTypeId: grantPlan,
 				durationMonths: grantMonths,
 				seats: grantPlan === 'team' ? grantSeats : undefined
 			}).updates(getAdminMemberships());
+			feedback = `✓ Grant ${grantPlan.toUpperCase()} (${grantMonths} bln) ke "${user?.username ?? grantUserId}" berhasil.`;
 			grantUserId = '';
 		} catch (err) {
+			feedback = null;
 			alert(err instanceof Error ? err.message : 'Gagal grant.');
 		}
+	};
+
+	// Tombol Grant cepat per-baris: buka form + isi user + scroll.
+	const quickGrant = (userId: string) => {
+		grantUserId = userId;
+		grantOpen = true;
+		feedback = null;
+		queueMicrotask(() => {
+			document.getElementById('grant-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		});
 	};
 
 	const revoke = async (userId: string) => {
@@ -64,8 +79,16 @@
 		Pantau plan user & grant membership (partner/eksternal, tanpa pembayaran).
 	</p>
 
+	{#if feedback}
+		<div class="alert alert-success mt-4 py-2 text-sm">{feedback}</div>
+	{/if}
+
 	<!-- Grant form -->
-	<details class="collapse collapse-arrow bg-base-100 border border-base-200 mt-4">
+	<details
+		id="grant-card"
+		class="collapse collapse-arrow bg-base-100 border border-base-200 mt-4"
+		bind:open={grantOpen}
+	>
 		<summary class="collapse-title font-semibold">Grant Membership</summary>
 		<div class="collapse-content">
 			<form
@@ -174,12 +197,7 @@
 									>Revoke</button
 								>
 							{:else}
-								<button
-									class="btn btn-ghost btn-xs"
-									onclick={() => {
-										grantUserId = r.id;
-									}}>Grant</button
-								>
+								<button class="btn btn-ghost btn-xs" onclick={() => quickGrant(r.id)}>Grant</button>
 							{/if}
 						</td>
 					</tr>

@@ -61,9 +61,6 @@ export const grantMembership = command(
 
 		const plan = await membershipTypeRepository.getById(input.membershipTypeId);
 		if (!plan) throw error(404, 'Plan tidak ditemukan.');
-		if (Number(plan.price ?? 0) > 0 && plan.id !== 'free' && !input.seats && plan.id === 'team') {
-			// team needs seats hint; default to 3.
-		}
 
 		await userMembershipRepository.activateForUser(
 			input.userId,
