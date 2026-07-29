@@ -16,11 +16,15 @@ export const paymentGatewayRepository = {
 		return result[0] ?? null;
 	},
 	getByProvider: async (provider: PaymentGatewayRecord['provider']) => {
-		return await db
+		const result = await db
 			.select()
 			.from(paymentGateway)
 			.where(eq(paymentGateway.provider, provider))
-			.orderBy(desc(paymentGateway.createdAt));
+			.orderBy(
+				sql`CASE WHEN ${paymentGateway.status} = 'active' THEN 0 ELSE 1 END`,
+				desc(paymentGateway.createdAt)
+			);
+		return result[0] ?? null;
 	},
 	getActive: async () => {
 		return await db
@@ -32,10 +36,12 @@ export const paymentGatewayRepository = {
 	list: async () => {
 		return await db.select().from(paymentGateway).orderBy(desc(paymentGateway.createdAt));
 	},
-	create: async (input: Omit<PaymentGatewayInsert, 'id' | 'createdAt' | 'updatedAt'> & {
-		credentials?: Record<string, unknown>;
-		metadata?: Record<string, unknown> | null;
-	}) => {
+	create: async (
+		input: Omit<PaymentGatewayInsert, 'id' | 'createdAt' | 'updatedAt'> & {
+			credentials?: Record<string, unknown>;
+			metadata?: Record<string, unknown> | null;
+		}
+	) => {
 		const now = new Date();
 		const payload: PaymentGatewayInsert = {
 			...input,
@@ -89,12 +95,12 @@ export const paymentGatewayRepository = {
 	},
 	getGatewayPerformance: async (options?: { days?: number }) => {
 		const rawDays = options?.days;
-		const days = typeof rawDays === 'number' && Number.isFinite(rawDays)
-			? Math.max(0, Math.trunc(rawDays))
-			: null;
-		const joinFilter = days && days > 0
-			? sql.raw(` AND p.created_at >= NOW() - INTERVAL '${days} days'`)
-			: sql``;
+		const days =
+			typeof rawDays === 'number' && Number.isFinite(rawDays)
+				? Math.max(0, Math.trunc(rawDays))
+				: null;
+		const joinFilter =
+			days && days > 0 ? sql.raw(` AND p.created_at >= NOW() - INTERVAL '${days} days'`) : sql``;
 
 		const query = sql`
 			SELECT

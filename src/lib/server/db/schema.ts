@@ -13,26 +13,40 @@ import {
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
-export const paymentStatusEnum = pgEnum('payment_status', ['pending', 'succeeded', 'failed', 'refunded']);
+export const paymentStatusEnum = pgEnum('payment_status', [
+	'pending',
+	'succeeded',
+	'failed',
+	'refunded'
+]);
 export const paymentGatewayProviderEnum = pgEnum('payment_gateway_provider', [
 	'custom',
 	'manual',
 	'stripe',
 	'paypal',
 	'adyen',
-	'razorpay'
+	'razorpay',
+	'sumopod'
 ]);
-export const paymentGatewayStatusEnum = pgEnum('payment_gateway_status', ['inactive', 'test', 'active']);
+export const paymentGatewayStatusEnum = pgEnum('payment_gateway_status', [
+	'inactive',
+	'test',
+	'active'
+]);
 export const membershipPlanEnum = pgEnum('membership_plan', ['free', 'pro', 'team']);
 
 export const user = pgTable('user', {
-	id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+	id: uuid('id')
+		.primaryKey()
+		.default(sql`gen_random_uuid()`),
 	age: integer('age'),
 	username: varchar('username', { length: 255 }).notNull().unique(),
 	email: varchar('email', { length: 255 }).notNull().unique(),
 	passwordHash: text('password_hash').notNull(),
 	isAdmin: boolean('is_admin').default(false),
-	createdAt: timestamp('created_at').notNull().default(sql`now()`)
+	createdAt: timestamp('created_at')
+		.notNull()
+		.default(sql`now()`)
 });
 
 export const session = pgTable('session', {
@@ -44,26 +58,34 @@ export const session = pgTable('session', {
 });
 
 export const organization = pgTable('organization', {
-	id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+	id: uuid('id')
+		.primaryKey()
+		.default(sql`gen_random_uuid()`),
 	name: varchar('name', { length: 255 }).notNull(),
 	ownerId: uuid('owner_id').references(() => user.id)
 });
 
-export const organizationMember = pgTable('organization_member', {
-	organizationId: uuid('organization_id')
-		.notNull()
-		.references(() => organization.id),
-	userId: uuid('user_id')
-		.notNull()
-		.references(() => user.id)
-}, (table) => {
-	return {
-		pk: primaryKey({ columns: [table.organizationId, table.userId] })
+export const organizationMember = pgTable(
+	'organization_member',
+	{
+		organizationId: uuid('organization_id')
+			.notNull()
+			.references(() => organization.id),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => user.id)
+	},
+	(table) => {
+		return {
+			pk: primaryKey({ columns: [table.organizationId, table.userId] })
+		};
 	}
-});
+);
 
 export const project = pgTable('project', {
-	id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+	id: uuid('id')
+		.primaryKey()
+		.default(sql`gen_random_uuid()`),
 	name: varchar('name', { length: 255 }).notNull(),
 	description: text('description'),
 	slug: varchar('slug', { length: 255 }).unique(),
@@ -71,18 +93,22 @@ export const project = pgTable('project', {
 	isPublic: boolean('is_public').default(false)
 });
 
-export const projectMember = pgTable('project_member', {
-	projectId: uuid('project_id')
-		.notNull()
-		.references(() => project.id),
-	userId: uuid('user_id')
-		.notNull()
-		.references(() => user.id)
-}, (table) => {
-	return {
-		pk: primaryKey({ columns: [table.projectId, table.userId] })
+export const projectMember = pgTable(
+	'project_member',
+	{
+		projectId: uuid('project_id')
+			.notNull()
+			.references(() => project.id),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => user.id)
+	},
+	(table) => {
+		return {
+			pk: primaryKey({ columns: [table.projectId, table.userId] })
+		};
 	}
-});
+);
 
 export const membershipType = pgTable('membership_type', {
 	id: text('id').primaryKey(),
@@ -90,24 +116,51 @@ export const membershipType = pgTable('membership_type', {
 	description: text('description'),
 	price: numeric('price', { precision: 12, scale: 2 }).default(sql`0`),
 	currency: varchar('currency', { length: 3 }).default('USD'),
+	durationMonths: integer('duration_months').notNull().default(1),
 	isDefault: boolean('is_default').default(false)
 });
 
 export const userMembership = pgTable('user_membership', {
-	id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+	id: uuid('id')
+		.primaryKey()
+		.default(sql`gen_random_uuid()`),
 	userId: uuid('user_id')
 		.notNull()
 		.references(() => user.id),
 	membershipTypeId: text('membership_type_id')
 		.notNull()
 		.references(() => membershipType.id),
-	startDate: timestamp('start_date').notNull().default(sql`now()`),
+	startDate: timestamp('start_date')
+		.notNull()
+		.default(sql`now()`),
 	endDate: timestamp('end_date'),
-	isActive: boolean('is_active').notNull().default(true)
+	isActive: boolean('is_active').notNull().default(true),
+	// True untuk membership trial (bukan pembayaran). AI quota trial lebih kecil.
+	isTrial: boolean('is_trial').notNull().default(false),
+	// Jumlah seat dibeli (Team per-seat). Null = pakai default plan.
+	seats: integer('seats')
+});
+
+export const userCredit = pgTable('user_credit', {
+	userId: uuid('user_id')
+		.primaryKey()
+		.references(() => user.id),
+	// Pemakaian AI bulan berjalan (reset otomatis tiap bulan).
+	monthlyUsed: integer('monthly_used').notNull().default(0),
+	monthlyResetAt: timestamp('monthly_reset_at')
+		.notNull()
+		.default(sql`now() + interval '1 month'`),
+	// Saldo AI topup (one-time). Dipakai setelah kuota bulanan habis.
+	topupBalance: integer('topup_balance').notNull().default(0),
+	updatedAt: timestamp('updated_at')
+		.notNull()
+		.default(sql`now()`)
 });
 
 export const paymentGateway = pgTable('payment_gateway', {
-	id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+	id: uuid('id')
+		.primaryKey()
+		.default(sql`gen_random_uuid()`),
 	name: varchar('name', { length: 255 }).notNull(),
 	provider: paymentGatewayProviderEnum('provider').notNull(),
 	status: paymentGatewayStatusEnum('status').notNull().default('inactive'),
@@ -117,19 +170,27 @@ export const paymentGateway = pgTable('payment_gateway', {
 		.default(sql`'{}'::jsonb`),
 	webhookSecret: varchar('webhook_secret', { length: 255 }),
 	metadata: jsonb('metadata').$type<Record<string, unknown> | null>().default(null),
-	createdAt: timestamp('created_at').notNull().default(sql`now()`),
-	updatedAt: timestamp('updated_at').notNull().default(sql`now()`)
+	createdAt: timestamp('created_at')
+		.notNull()
+		.default(sql`now()`),
+	updatedAt: timestamp('updated_at')
+		.notNull()
+		.default(sql`now()`)
 });
 
 export const task_status = pgTable('task_status', {
-	id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+	id: uuid('id')
+		.primaryKey()
+		.default(sql`gen_random_uuid()`),
 	name: varchar('name', { length: 255 }).notNull(),
 	order: integer('order').notNull().default(0),
 	projectId: uuid('project_id').references(() => project.id)
 });
 
 export const task = pgTable('task', {
-	id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+	id: uuid('id')
+		.primaryKey()
+		.default(sql`gen_random_uuid()`),
 	name: varchar('name', { length: 255 }).notNull(),
 	description: text('description'),
 	projectId: uuid('project_id').references(() => project.id),
@@ -140,15 +201,21 @@ export const task = pgTable('task', {
 });
 
 export const taskComment = pgTable('task_comment', {
-	id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+	id: uuid('id')
+		.primaryKey()
+		.default(sql`gen_random_uuid()`),
 	content: text('content').notNull(),
 	taskId: uuid('task_id').references(() => task.id),
 	userId: uuid('user_id').references(() => user.id),
-	createdAt: timestamp('created_at').notNull().default(sql`now()`)
+	createdAt: timestamp('created_at')
+		.notNull()
+		.default(sql`now()`)
 });
 
 export const activity = pgTable('activity', {
-	id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+	id: uuid('id')
+		.primaryKey()
+		.default(sql`gen_random_uuid()`),
 	projectId: uuid('project_id')
 		.notNull()
 		.references(() => project.id),
@@ -159,11 +226,15 @@ export const activity = pgTable('activity', {
 	type: varchar('type', { length: 255 }).notNull(),
 	description: text('description'),
 	metadata: text('metadata'),
-	createdAt: timestamp('created_at').notNull().default(sql`now()`)
+	createdAt: timestamp('created_at')
+		.notNull()
+		.default(sql`now()`)
 });
 
 export const payment = pgTable('payment', {
-	id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+	id: uuid('id')
+		.primaryKey()
+		.default(sql`gen_random_uuid()`),
 	userId: uuid('user_id')
 		.notNull()
 		.references(() => user.id),
@@ -173,16 +244,26 @@ export const payment = pgTable('payment', {
 	status: paymentStatusEnum('status').notNull().default('pending'),
 	intentId: varchar('intent_id', { length: 255 }),
 	externalId: varchar('external_id', { length: 255 }),
+	invoiceNumber: varchar('invoice_number', { length: 50 }).unique(),
+	membershipTypeId: text('membership_type_id').references(() => membershipType.id),
+	// 'subscription' (beli plan) | 'topup' (beli kredit AI).
+	productType: varchar('product_type', { length: 20 }).notNull().default('subscription'),
+	// Kredit AI untuk productType='topup'.
+	creditsPurchased: integer('credits_purchased'),
+	// Seat dibeli untuk plan Team (productType='subscription').
+	seatsPurchased: integer('seats_purchased'),
 	description: text('description'),
 	metadata: jsonb('metadata').$type<Record<string, unknown> | null>().default(null),
 	errorCode: varchar('error_code', { length: 255 }),
 	errorMessage: text('error_message'),
-	createdAt: timestamp('created_at').notNull().default(sql`now()`),
-	updatedAt: timestamp('updated_at').notNull().default(sql`now()`),
+	createdAt: timestamp('created_at')
+		.notNull()
+		.default(sql`now()`),
+	updatedAt: timestamp('updated_at')
+		.notNull()
+		.default(sql`now()`),
 	completedAt: timestamp('completed_at')
 });
-
-
 
 export const projectRelations = relations(project, ({ one, many }) => ({
 	organization: one(organization, {
@@ -224,6 +305,10 @@ export const paymentRelations = relations(payment, ({ one }) => ({
 	gateway: one(paymentGateway, {
 		fields: [payment.gatewayId],
 		references: [paymentGateway.id]
+	}),
+	membershipType: one(membershipType, {
+		fields: [payment.membershipTypeId],
+		references: [membershipType.id]
 	})
 }));
 
@@ -260,3 +345,4 @@ export type Payment = typeof payment.$inferSelect;
 export type PaymentGateway = typeof paymentGateway.$inferSelect;
 export type MembershipType = typeof membershipType.$inferSelect;
 export type UserMembership = typeof userMembership.$inferSelect;
+export type UserCredit = typeof userCredit.$inferSelect;

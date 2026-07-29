@@ -11,3 +11,4 @@ export { userMembershipRepository } from './userMembershipRepository';
 export { membershipTypeRepository } from './membershipTypeRepository';
 export { paymentRepository } from './paymentRepository';
 export { paymentGatewayRepository } from './paymentGatewayRepository';
+export { userCreditRepository } from './userCreditRepository';

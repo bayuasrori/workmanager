@@ -1,7 +1,12 @@
 import * as v from 'valibot';
 import { error } from '@sveltejs/kit';
 import { query, command, getRequestEvent } from '$app/server';
-import { taskService, taskStatusService, projectService } from '$lib/server/service';
+import {
+	taskService,
+	taskStatusService,
+	projectService,
+	assertTaskLimit
+} from '$lib/server/service';
 
 // Query to refresh project data (tasks, statuses, project info)
 export const getProjectTasks = query(
@@ -113,6 +118,11 @@ export const createTask = command(
 		assigneeId: v.optional(v.string())
 	}),
 	async ({ projectId, name, description, statusId, assigneeId }) => {
+		const { locals } = getRequestEvent();
+		const userId = locals.user?.id;
+		if (userId) {
+			await assertTaskLimit(userId, projectId);
+		}
 		await taskService.create({
 			name,
 			description: description || null,

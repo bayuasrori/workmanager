@@ -1,6 +1,12 @@
 import { paymentRepository } from '../repositories';
+import { membershipTypeRepository } from '../repositories';
+import { userMembershipRepository } from '../repositories';
+import { userCreditRepository } from '../repositories';
 import type { Payment as PaymentRecord } from '../db/schema';
 import { paymentStatusEnum } from '../db/schema';
+import { getActiveProvider } from '$lib/server/payment';
+import { AI_TOPUP_PACKS } from '$lib/server/plans';
+import type { WebhookEvent, PaymentProviderName } from '$lib/server/payment/types';
 
 const now = () => new Date();
 
@@ -63,6 +69,47 @@ type PaymentDashboardData = {
 
 const analyticsCache = new Map<string, { expiresAt: number; value: PaymentDashboardData }>();
 
+/**
+ * Activates/extends the user's membership based on a successful subscription payment.
+ * - No-op if payment isn't tied to a plan or the plan no longer exists.
+ * - For Team plan, forwards purchased seats to the membership row.
+ * - Records the activation id back into the payment's metadata for audit.
+ */
+async function activateMembershipForPayment(record: PaymentRecord | null) {
+	if (!record?.membershipTypeId) return;
+	if (record.productType && record.productType !== 'subscription') return;
+	const plan = await membershipTypeRepository.getById(record.membershipTypeId);
+	if (!plan) return;
+	const duration = plan.durationMonths ?? 1;
+	const activated = await userMembershipRepository.activateForUser(
+		record.userId,
+		plan.id,
+		duration,
+		record.seatsPurchased
+	);
+	await paymentService.appendMetadata(record.id, {
+		membershipActivatedId: activated?.id ?? null,
+		membershipActivatedAt: new Date().toISOString(),
+		membershipDurationMonths: duration,
+		membershipSeats: record.seatsPurchased ?? null
+	});
+}
+
+/**
+ * Grants AI topup credits after a successful topup payment.
+ * - No-op if payment isn't a topup or has no credits.
+ */
+async function grantTopupForPayment(record: PaymentRecord | null) {
+	if (!record || record.productType !== 'topup' || !record.creditsPurchased) return;
+	// Pastikan row user_credit ada (admin/user baru mungkin belum punya).
+	await userCreditRepository.ensure(record.userId);
+	await userCreditRepository.addTopup(record.userId, record.creditsPurchased);
+	await paymentService.appendMetadata(record.id, {
+		creditsGranted: record.creditsPurchased,
+		grantedAt: new Date().toISOString()
+	});
+}
+
 export const paymentService = {
 	getById: async (id: string) => {
 		return await paymentRepository.getById(id);
@@ -75,6 +122,12 @@ export const paymentService = {
 	},
 	listWithGateway: async (limit = 50) => {
 		return await paymentRepository.listWithGateway(limit);
+	},
+	getByIntentId: async (intentId: string) => {
+		return await paymentRepository.getByIntentId(intentId);
+	},
+	getByExternalId: async (externalId: string) => {
+		return await paymentRepository.getByExternalId(externalId);
 	},
 	getDashboardAnalytics: async (
 		options: PaymentDashboardOptions = {}
@@ -173,5 +226,203 @@ export const paymentService = {
 	},
 	getRecentFailures: async (limit = 10) => {
 		return await paymentRepository.getRecentFailures(limit);
+	},
+	createIntent: async (input: {
+		userId: string;
+		provider: PaymentProviderName;
+		membershipTypeId: string;
+		seats?: number;
+		description?: string;
+		expiresInHours?: number;
+		paymentMethodTypeCode?: string;
+		successReturnUrl?: string;
+		cancelReturnUrl?: string;
+	}): Promise<{ payment: PaymentRecord; paymentLinkUrl: string }> => {
+		const { provider: providerName, membershipTypeId, ...rest } = input;
+
+		// Resolve the plan — price/currency/duration come from it, never from the client.
+		const plan = await membershipTypeRepository.getById(membershipTypeId);
+		if (!plan) {
+			throw new Error(`Membership type "${membershipTypeId}" tidak ditemukan.`);
+		}
+		const unitPrice = Number(plan.price ?? 0);
+		if (unitPrice <= 0) {
+			throw new Error('Plan gratis tidak memerlukan pembayaran.');
+		}
+		// Team = per-seat billing. Pro = 1 seat. Validate seat count.
+		const seats = plan.id === 'team' ? Math.max(3, input.seats ?? 3) : 1;
+		const totalAmount = unitPrice * seats;
+		const currency = (plan.currency ?? 'IDR').toUpperCase();
+		const description =
+			rest.description ??
+			(plan.id === 'team'
+				? `Langganan ${plan.name} (${seats} seat)`
+				: `Langganan ${plan.name} (${plan.id})`);
+
+		const active = await getActiveProvider(providerName);
+		if (!active) {
+			throw new Error(
+				`Provider "${providerName}" tidak aktif atau belum diimplementasikan. Konfigurasi gateway di /admin/payment-gateways.`
+			);
+		}
+		const { gateway, provider } = active;
+
+		// 1. Persist pending row first so we own the order_id (= payment.id).
+		const invoiceNumber = await paymentRepository.getNextInvoiceNumber();
+		const payment = await paymentService.create({
+			userId: input.userId,
+			gatewayId: gateway.id,
+			amount: String(totalAmount),
+			currency,
+			description,
+			status: 'pending',
+			externalId: null,
+			intentId: null,
+			invoiceNumber,
+			membershipTypeId: plan.id,
+			productType: 'subscription',
+			seatsPurchased: seats
+		});
+
+		// 2. Ask provider for a payment link. order_id echoes back in the webhook.
+		const result = await provider.createPayment({
+			orderId: payment.id,
+			amount: totalAmount,
+			currency,
+			expiresInHours: rest.expiresInHours,
+			successReturnUrl: rest.successReturnUrl,
+			cancelReturnUrl: rest.cancelReturnUrl,
+			paymentMethodTypeCode: rest.paymentMethodTypeCode,
+			description
+		});
+
+		// 3. Store provider's payment id + link metadata.
+		const updated = await paymentService.update(payment.id, {
+			intentId: result.paymentId,
+			metadata: {
+				paymentLinkUrl: result.paymentLinkUrl,
+				expiresAt: result.expiresAt ?? null,
+				fee: result.fee ?? null,
+				netAmount: result.netAmount ?? null,
+				providerStatus: result.status,
+				planName: plan.name,
+				planDurationMonths: plan.durationMonths,
+				seats
+			}
+		});
+
+		return { payment: updated ?? payment, paymentLinkUrl: result.paymentLinkUrl };
+	},
+	createTopup: async (input: {
+		userId: string;
+		provider: PaymentProviderName;
+		packId: string;
+		expiresInHours?: number;
+		paymentMethodTypeCode?: string;
+		successReturnUrl?: string;
+		cancelReturnUrl?: string;
+	}): Promise<{ payment: PaymentRecord; paymentLinkUrl: string }> => {
+		const { provider: providerName, packId, ...rest } = input;
+		const pack = AI_TOPUP_PACKS.find((p) => p.id === packId);
+		if (!pack) {
+			throw new Error(`Paket topup "${packId}" tidak ditemukan.`);
+		}
+
+		const active = await getActiveProvider(providerName);
+		if (!active) {
+			throw new Error(
+				`Provider "${providerName}" tidak aktif. Konfigurasi gateway di /admin/payment-gateways.`
+			);
+		}
+		const { gateway, provider } = active;
+
+		const invoiceNumber = await paymentRepository.getNextInvoiceNumber();
+		const payment = await paymentService.create({
+			userId: input.userId,
+			gatewayId: gateway.id,
+			amount: String(pack.price),
+			currency: pack.currency,
+			description: pack.label,
+			status: 'pending',
+			externalId: null,
+			intentId: null,
+			invoiceNumber,
+			productType: 'topup',
+			creditsPurchased: pack.credits
+		});
+
+		const result = await provider.createPayment({
+			orderId: payment.id,
+			amount: pack.price,
+			currency: pack.currency,
+			expiresInHours: rest.expiresInHours,
+			successReturnUrl: rest.successReturnUrl,
+			cancelReturnUrl: rest.cancelReturnUrl,
+			paymentMethodTypeCode: rest.paymentMethodTypeCode,
+			description: pack.label
+		});
+
+		const updated = await paymentService.update(payment.id, {
+			intentId: result.paymentId,
+			metadata: {
+				paymentLinkUrl: result.paymentLinkUrl,
+				expiresAt: result.expiresAt ?? null,
+				fee: result.fee ?? null,
+				netAmount: result.netAmount ?? null,
+				providerStatus: result.status,
+				credits: pack.credits,
+				packLabel: pack.label
+			}
+		});
+
+		return { payment: updated ?? payment, paymentLinkUrl: result.paymentLinkUrl };
+	},
+	handleWebhookEvent: async (
+		provider: { normalizeStatus: (s?: string) => PaymentStatus },
+		event: WebhookEvent
+	): Promise<{ payment: PaymentRecord | null; skipped: boolean }> => {
+		// Prefer order_id (our payment.id), fall back to provider payment_id.
+		let payment: PaymentRecord | null = null;
+		if (event.orderId) payment = await paymentService.getById(event.orderId);
+		if (!payment && event.paymentId) payment = await paymentService.getByIntentId(event.paymentId);
+		if (!payment) return { payment: null, skipped: true };
+
+		// Idempotent: terminal statuses are not overwritten.
+		if (payment.status === 'succeeded' || payment.status === 'refunded') {
+			return { payment, skipped: true };
+		}
+
+		const status = provider.normalizeStatus(event.status);
+		const meta = {
+			lastEventType: event.eventType,
+			providerStatus: event.status ?? null,
+			paymentMethod: event.paymentMethod ?? null,
+			completedAt: event.completedAt ?? null,
+			fee: event.fee ?? null,
+			netAmount: event.netAmount ?? null,
+			raw: event.raw
+		};
+
+		if (status === 'succeeded') {
+			const ok = await paymentService.markAsSucceeded(payment.id, meta);
+			const record = ok ?? payment;
+			// Dispatch by product type: subscription → activate membership, topup → grant credits.
+			if (record.productType === 'topup') {
+				await grantTopupForPayment(record);
+			} else {
+				await activateMembershipForPayment(record);
+			}
+			return { payment: record, skipped: false };
+		}
+		if (status === 'failed') {
+			const ok = await paymentService.recordFailure(payment.id, {
+				message: `Pembayaran ${event.status ?? 'gagal'} via webhook`,
+				metadata: meta
+			});
+			return { payment: ok ?? payment, skipped: false };
+		}
+		// pending: just enrich metadata.
+		await paymentService.appendMetadata(payment.id, meta);
+		return { payment, skipped: false };
 	}
 };

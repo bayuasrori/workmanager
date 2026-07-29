@@ -15,7 +15,10 @@
 		projects: SidebarProject[];
 	};
 
-	export let data: { organizations: SidebarOrganization[]; user: { isAdmin?: boolean | null | undefined } };
+	export let data: {
+		organizations: SidebarOrganization[];
+		user: { isAdmin?: boolean | null | undefined };
+	};
 	export let isMobile = false;
 
 	let isOpen = true;
@@ -52,9 +55,7 @@
 				class="px-4 py-4 sticky top-0 z-10 bg-emerald-900/80 backdrop-blur supports-[backdrop-filter]:bg-emerald-900/70 border-b border-emerald-800"
 			>
 				<div class="flex items-center justify-between gap-2">
-					<h2 class="text-sm font-bold uppercase tracking-wider text-emerald-100">
-						Tautan Cepat
-					</h2>
+					<h2 class="text-sm font-bold uppercase tracking-wider text-emerald-100">Tautan Cepat</h2>
 					<button
 						type="button"
 						on:click={toggleSidebar}
@@ -86,6 +87,13 @@
 					<span class="text-lg">🤖</span>
 					<span class="font-semibold tracking-wide">Catatan → Task</span>
 				</a>
+				<a
+					href="/billing"
+					class="btn btn-sm w-full mt-2 justify-start gap-3 border-none bg-emerald-700 hover:bg-emerald-600 text-emerald-50 shadow-md"
+				>
+					<span class="text-lg">💳</span>
+					<span class="font-semibold tracking-wide">Billing</span>
+				</a>
 				{#if data.user.isAdmin}
 					<a
 						href="/admin/dashboard"
@@ -97,9 +105,7 @@
 				{/if}
 				<hr class="my-4 border-emerald-700" />
 				<div class="flex items-center justify-between gap-2">
-					<h2 class="text-sm font-bold uppercase tracking-wider text-emerald-100">
-						Organisasi
-					</h2>
+					<h2 class="text-sm font-bold uppercase tracking-wider text-emerald-100">Organisasi</h2>
 				</div>
 				<a
 					href="/org/create"

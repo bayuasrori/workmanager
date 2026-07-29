@@ -1,7 +1,12 @@
 import * as v from 'valibot';
 import { command, getRequestEvent, query } from '$app/server';
 import { error } from '@sveltejs/kit';
-import { projectService, taskStatusService, taskService } from '$lib/server/service';
+import {
+	projectService,
+	taskStatusService,
+	taskService,
+	consumeAiCredit
+} from '$lib/server/service';
 import {
 	parseNotesToTasks,
 	resolveTaskFields,
@@ -58,6 +63,7 @@ export const parseNotes = command(
 		const userId = locals.user?.id;
 		if (!userId) error(401, 'Unauthorized');
 		await ensureMembership(projectId, userId);
+		await consumeAiCredit(userId);
 		const ctx = await loadProjectContext(projectId);
 		return parseNotesToTasks(notes, ctx);
 	}

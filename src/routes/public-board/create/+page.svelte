@@ -93,7 +93,7 @@
 								Buat Papan Publik
 							{/if}
 						</button>
-						<a href="/" class="btn btn-outline" disabled={submitting}>Batal</a>
+						<a href="/" class="btn btn-outline" aria-disabled={submitting}>Batal</a>
 					</div>
 				</form>
 

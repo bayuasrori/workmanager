@@ -1,6 +1,12 @@
 import * as v from 'valibot';
 import { command, getRequestEvent, query } from '$app/server';
-import { taskService, projectService, userService, taskStatusService } from '$lib/server/service';
+import {
+	taskService,
+	projectService,
+	userService,
+	taskStatusService,
+	assertTaskLimit
+} from '$lib/server/service';
 
 export const getTaskCreateData = query(
 	v.object({
@@ -23,6 +29,10 @@ export const createTask = command(
 	}),
 	async ({ name, projectId, assigneeId, statusId }) => {
 		const { locals } = getRequestEvent();
+		const userId = locals.user?.id;
+		if (userId && projectId) {
+			await assertTaskLimit(userId, projectId);
+		}
 		await taskService.create(
 			{
 				name,

@@ -20,6 +20,37 @@ export const userMembershipRepository = {
 	delete: async (id: string) => {
 		return await db.delete(userMembership).where(eq(userMembership.id, id));
 	},
+	/**
+	 * Activates a membership for a user: expires any currently-active rows,
+	 * then inserts a fresh one spanning `durationMonths` from now.
+	 * Runs in a transaction so the user always has exactly one active plan.
+	 */
+	activateForUser: async (
+		userId: string,
+		membershipTypeId: string,
+		durationMonths: number,
+		seats?: number | null
+	) => {
+		return await db.transaction(async (tx) => {
+			await tx
+				.update(userMembership)
+				.set({ isActive: false })
+				.where(eq(userMembership.userId, userId));
+			const [row] = await tx
+				.insert(userMembership)
+				.values({
+					userId,
+					membershipTypeId,
+					startDate: new Date(),
+					endDate: sql`now() + make_interval(months => ${durationMonths})`,
+					isActive: true,
+					isTrial: false,
+					seats: seats ?? null
+				})
+				.returning();
+			return row;
+		});
+	},
 	getMembershipDistribution: async () => {
 		const query = sql`
 			SELECT
@@ -86,11 +117,11 @@ export const userMembershipRepository = {
 				last_activity_date ASC
 		`;
 		const result = await db.all(query);
-		return result as { 
-			id: string; 
-			username: string; 
-			email: string; 
-			membership_type: string; 
+		return result as {
+			id: string;
+			username: string;
+			email: string;
+			membership_type: string;
 			last_activity_date: Date;
 			risk_level: 'high' | 'medium' | 'low';
 		}[];

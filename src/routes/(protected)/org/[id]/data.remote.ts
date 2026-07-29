@@ -1,7 +1,12 @@
 import * as v from 'valibot';
 import { command, getRequestEvent, query } from '$app/server';
 import { error } from '@sveltejs/kit';
-import { organizationMemberService, organizationService, userService } from '$lib/server/service';
+import {
+	organizationMemberService,
+	organizationService,
+	userService,
+	assertMemberLimit
+} from '$lib/server/service';
 
 const ensureAccess = async (organizationId: string) => {
 	const { locals } = getRequestEvent();
@@ -51,7 +56,12 @@ export const addMember = command(
 		userId: v.string()
 	}),
 	async ({ organizationId, userId }) => {
+		const { locals } = getRequestEvent();
+		const inviterId = locals.user?.id;
 		await ensureAccess(organizationId);
+		if (inviterId) {
+			await assertMemberLimit(inviterId, organizationId);
+		}
 		await organizationMemberService.create({ organizationId, userId });
 		return { success: true };
 	}

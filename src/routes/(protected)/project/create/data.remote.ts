@@ -1,7 +1,7 @@
 import * as v from 'valibot';
 import { command, getRequestEvent, query } from '$app/server';
 import { error } from '@sveltejs/kit';
-import { organizationService, projectService } from '$lib/server/service';
+import { organizationService, projectService, assertProjectLimit } from '$lib/server/service';
 
 export const getProjectCreateData = query(async () => {
 	const { locals } = getRequestEvent();
@@ -30,6 +30,9 @@ export const createProject = command(
 			if (!hasAccess) {
 				throw error(403, 'Forbidden');
 			}
+		}
+		if (userId) {
+			await assertProjectLimit(userId);
 		}
 		const creatorId = userId ?? undefined;
 		const created = await projectService.create(

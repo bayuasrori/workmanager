@@ -11,3 +11,4 @@ export * from './activity';
 export * from './userMembership';
 export * from './payment';
 export * from './paymentGateway';
+export * from './entitlement';

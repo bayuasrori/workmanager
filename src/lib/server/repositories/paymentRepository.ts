@@ -1,5 +1,11 @@
 import { db } from '../db';
-import { payment, paymentGateway, paymentStatusEnum, type Payment as PaymentRecord, type PaymentGateway as PaymentGatewayRecord } from '../db/schema';
+import {
+	payment,
+	paymentGateway,
+	paymentStatusEnum,
+	type Payment as PaymentRecord,
+	type PaymentGateway as PaymentGatewayRecord
+} from '../db/schema';
 import { desc, eq, sql } from 'drizzle-orm';
 
 const now = () => new Date();
@@ -18,11 +24,7 @@ export const paymentRepository = {
 		return record ?? null;
 	},
 	list: async (limit = 50) => {
-		return await db
-			.select()
-			.from(payment)
-			.orderBy(desc(payment.createdAt))
-			.limit(limit);
+		return await db.select().from(payment).orderBy(desc(payment.createdAt)).limit(limit);
 	},
 	listByUser: async (userId: string, limit = 25) => {
 		return await db
@@ -60,7 +62,34 @@ export const paymentRepository = {
 
 		return rows as PaymentWithGateway[];
 	},
-	create: async (input: Omit<PaymentInsert, 'id' | 'status' | 'createdAt' | 'updatedAt'> & { status?: PaymentStatus }) => {
+	getByIntentId: async (intentId: string) => {
+		const [record] = await db.select().from(payment).where(eq(payment.intentId, intentId));
+		return record ?? null;
+	},
+	getByExternalId: async (externalId: string) => {
+		const [record] = await db.select().from(payment).where(eq(payment.externalId, externalId));
+		return record ?? null;
+	},
+	getByInvoiceNumber: async (invoiceNumber: string) => {
+		const [record] = await db
+			.select()
+			.from(payment)
+			.where(eq(payment.invoiceNumber, invoiceNumber));
+		return record ?? null;
+	},
+	getNextInvoiceNumber: async (): Promise<string> => {
+		const year = new Date().getFullYear();
+		const countRow = await db.get<{ n: number }>(
+			sql`SELECT COUNT(*)::int AS n FROM payment WHERE invoice_number LIKE ${'INV-' + year + '-%'}`
+		);
+		const seq = (countRow?.n ?? 0) + 1;
+		return `INV-${year}-${String(seq).padStart(4, '0')}`;
+	},
+	create: async (
+		input: Omit<PaymentInsert, 'id' | 'status' | 'createdAt' | 'updatedAt'> & {
+			status?: PaymentStatus;
+		}
+	) => {
 		const timestamp = now();
 		const payload: PaymentInsert = {
 			...input,
@@ -78,11 +107,7 @@ export const paymentRepository = {
 			...input,
 			updatedAt: now()
 		};
-		const [record] = await db
-			.update(payment)
-			.set(payload)
-			.where(eq(payment.id, id))
-			.returning();
+		const [record] = await db.update(payment).set(payload).where(eq(payment.id, id)).returning();
 		return record ?? null;
 	},
 	updateStatus: async (
@@ -101,11 +126,7 @@ export const paymentRepository = {
 			updates.completedAt = now();
 		}
 
-		const [record] = await db
-			.update(payment)
-			.set(updates)
-			.where(eq(payment.id, id))
-			.returning();
+		const [record] = await db.update(payment).set(updates).where(eq(payment.id, id)).returning();
 		return record ?? null;
 	},
 	getRevenueSummary: async () => {

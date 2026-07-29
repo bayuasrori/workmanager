@@ -8,7 +8,8 @@ import {
 	organizationMemberService,
 	organizationService,
 	projectService,
-	taskStatusService
+	taskStatusService,
+	startTrial
 } from '$lib/server/service';
 
 const DEFAULT_PROJECT_NAME = 'My Project';
@@ -56,7 +57,11 @@ export const actions: Actions = {
 
 		const existingUser = results.at(0);
 		if (!existingUser) {
-			return fail(400, { intent: 'login', message: 'Nama pengguna atau kata sandi salah.', values });
+			return fail(400, {
+				intent: 'login',
+				message: 'Nama pengguna atau kata sandi salah.',
+				values
+			});
 		}
 
 		const validPassword = await verify(existingUser.passwordHash, password, {
@@ -66,14 +71,21 @@ export const actions: Actions = {
 			parallelism: 1
 		});
 		if (!validPassword) {
-			return fail(400, { intent: 'login', message: 'Nama pengguna atau kata sandi salah.', values });
+			return fail(400, {
+				intent: 'login',
+				message: 'Nama pengguna atau kata sandi salah.',
+				values
+			});
 		}
 
 		const sessionToken = auth.generateSessionToken();
 		const session = await auth.createSession(sessionToken, existingUser.id);
 		auth.setSessionTokenCookie(event, sessionToken, session.expiresAt);
 
-		await ensureDefaultWorkspaceForUser(existingUser.id, existingUser.username ?? existingUser.email);
+		await ensureDefaultWorkspaceForUser(
+			existingUser.id,
+			existingUser.username ?? existingUser.email
+		);
 
 		return redirect(302, '/dashboard');
 	},
@@ -114,7 +126,10 @@ export const actions: Actions = {
 		}
 
 		const normalizedEmail = (email as string).trim().toLowerCase();
-		const existingEmail = await db.select().from(table.user).where(eq(table.user.email, normalizedEmail));
+		const existingEmail = await db
+			.select()
+			.from(table.user)
+			.where(eq(table.user.email, normalizedEmail));
 		if (existingEmail.length > 0) {
 			return fail(400, { intent: 'register', message: 'Email sudah terdaftar.', values });
 		}
@@ -129,16 +144,29 @@ export const actions: Actions = {
 		});
 
 		try {
-			await db.insert(table.user).values({ id: userId, username, email: normalizedEmail, passwordHash, createdAt: new Date() });
+			await db
+				.insert(table.user)
+				.values({
+					id: userId,
+					username,
+					email: normalizedEmail,
+					passwordHash,
+					createdAt: new Date()
+				});
 
 			const sessionToken = auth.generateSessionToken();
 			const session = await auth.createSession(sessionToken, userId);
 			auth.setSessionTokenCookie(event, sessionToken, session.expiresAt);
 
 			await ensureDefaultWorkspaceForUser(userId, username as string);
-		} catch(e) {
+			await startTrial(userId);
+		} catch (e) {
 			console.error(e);
-			return fail(500, { intent: 'register', message: 'Terjadi kesalahan saat mendaftar. Coba lagi.', values });
+			return fail(500, {
+				intent: 'register',
+				message: 'Terjadi kesalahan saat mendaftar. Coba lagi.',
+				values
+			});
 		}
 		return redirect(302, '/dashboard');
 	}
@@ -149,7 +177,10 @@ async function ensureDefaultWorkspaceForUser(userId: string, username: string) {
 	if (existingProjects.length > 0) return;
 
 	const organizationName = deriveOrganizationName(username);
-	const organization = await organizationService.create({ name: organizationName, ownerId: userId });
+	const organization = await organizationService.create({
+		name: organizationName,
+		ownerId: userId
+	});
 
 	const existingMembership = await organizationMemberService.get(organization.id, userId);
 	if (!existingMembership) {
