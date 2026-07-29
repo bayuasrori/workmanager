@@ -116,6 +116,9 @@
 						<a href="/admin/payments" class="rounded px-2 py-1 hover:bg-emerald-800/60"
 							>💳 Payments</a
 						>
+						<a href="/admin/memberships" class="rounded px-2 py-1 hover:bg-emerald-800/60"
+							>👥 Memberships</a
+						>
 						<a href="/admin/payment-gateways" class="rounded px-2 py-1 hover:bg-emerald-800/60"
 							>🔌 Gateways</a
 						>
