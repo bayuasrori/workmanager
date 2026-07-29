@@ -15,9 +15,19 @@
 		projects: SidebarProject[];
 	};
 
+	type Entitlement = {
+		plan: string;
+		isTrial: boolean;
+		seats: number;
+		aiAllowance: number;
+		aiRemaining: number;
+		topupBalance: number;
+	};
+
 	export let data: {
 		organizations: SidebarOrganization[];
 		user: { isAdmin?: boolean | null | undefined };
+		entitlement?: Entitlement | null;
 	};
 	export let isMobile = false;
 
@@ -156,6 +166,44 @@
 					{/each}
 				</ul>
 			</div>
+			{#if data.entitlement}
+				<div class="border-t border-emerald-800 px-3 py-3">
+					<a
+						href="/billing"
+						class="block rounded-lg bg-emerald-900/70 p-3 hover:bg-emerald-800/70 transition-colors"
+					>
+						<div class="flex items-center justify-between">
+							<span
+								class="badge badge-sm capitalize {data.entitlement.plan === 'free'
+									? 'badge-ghost'
+									: data.entitlement.isTrial
+										? 'badge-warning'
+										: 'badge-success'}"
+							>
+								{data.entitlement.plan}{#if data.entitlement.isTrial}
+									trial{/if}
+							</span>
+							<span class="text-xs text-emerald-200/70">Kelola →</span>
+						</div>
+						<div class="mt-2 text-xs text-emerald-100">
+							<div class="flex justify-between">
+								<span>🤖 AI</span>
+								<span>{data.entitlement.aiRemaining}/{data.entitlement.aiAllowance}</span>
+							</div>
+							<progress
+								class="progress progress-warning w-full h-1 mt-1"
+								value={data.entitlement.aiAllowance - data.entitlement.aiRemaining}
+								max={data.entitlement.aiAllowance}
+							></progress>
+							{#if data.entitlement.topupBalance > 0}
+								<div class="mt-1 flex justify-between text-emerald-200/70">
+									<span>Topup</span><span>{data.entitlement.topupBalance}</span>
+								</div>
+							{/if}
+						</div>
+					</a>
+				</div>
+			{/if}
 		</aside>
 	{/if}
 </div>

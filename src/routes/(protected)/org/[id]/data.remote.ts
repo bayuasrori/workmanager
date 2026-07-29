@@ -5,7 +5,8 @@ import {
 	organizationMemberService,
 	organizationService,
 	userService,
-	assertMemberLimit
+	assertMemberLimit,
+	getEffectiveLimits
 } from '$lib/server/service';
 
 const ensureAccess = async (organizationId: string) => {
@@ -30,10 +31,20 @@ export const getOrganizationDetails = query(
 		organizationId: v.string()
 	}),
 	async ({ organizationId }) => {
-		const { organization } = await ensureAccess(organizationId);
+		const { organization, userId } = await ensureAccess(organizationId);
 		const users = await userService.getUsersNotInOrganization(organizationId);
 		const members = await organizationMemberService.getByOrganizationId(organizationId);
-		return { organization, users, members };
+		const limits = await getEffectiveLimits(userId);
+		return {
+			organization,
+			users,
+			members,
+			seats: {
+				used: members.length,
+				cap: limits.maxOrgMembers,
+				full: members.length >= (limits.maxOrgMembers ?? Infinity)
+			}
+		};
 	}
 );
 
