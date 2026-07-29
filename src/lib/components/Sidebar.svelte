@@ -112,6 +112,20 @@
 						<span class="text-lg">👑</span>
 						<span class="font-semibold tracking-wide">Admin</span>
 					</a>
+					<div class="mt-1 ml-2 flex flex-col gap-0.5 text-sm text-emerald-100/90">
+						<a href="/admin/payments" class="rounded px-2 py-1 hover:bg-emerald-800/60"
+							>💳 Payments</a
+						>
+						<a href="/admin/payment-gateways" class="rounded px-2 py-1 hover:bg-emerald-800/60"
+							>🔌 Gateways</a
+						>
+						<a href="/admin/membership-types" class="rounded px-2 py-1 hover:bg-emerald-800/60"
+							>📋 Plan</a
+						>
+						<a href="/admin/payment-activity" class="rounded px-2 py-1 hover:bg-emerald-800/60"
+							>📊 Activity</a
+						>
+					</div>
 				{/if}
 				<hr class="my-4 border-emerald-700" />
 				<div class="flex items-center justify-between gap-2">
