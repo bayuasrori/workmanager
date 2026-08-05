@@ -2,11 +2,13 @@ import { paymentRepository } from '../repositories';
 import { membershipTypeRepository } from '../repositories';
 import { userMembershipRepository } from '../repositories';
 import { userCreditRepository } from '../repositories';
+import { userRepository } from '../repositories';
 import type { Payment as PaymentRecord } from '../db/schema';
 import { paymentStatusEnum } from '../db/schema';
 import { getActiveProvider } from '$lib/server/payment';
 import { AI_TOPUP_PACKS } from '$lib/server/plans';
 import type { WebhookEvent, PaymentProviderName } from '$lib/server/payment/types';
+import { emailNotification } from './emailNotification';
 
 const now = () => new Date();
 
@@ -103,11 +105,18 @@ async function grantTopupForPayment(record: PaymentRecord | null) {
 	if (!record || record.productType !== 'topup' || !record.creditsPurchased) return;
 	// Pastikan row user_credit ada (admin/user baru mungkin belum punya).
 	await userCreditRepository.ensure(record.userId);
-	await userCreditRepository.addTopup(record.userId, record.creditsPurchased);
+	const creditRow = await userCreditRepository.addTopup(record.userId, record.creditsPurchased);
 	await paymentService.appendMetadata(record.id, {
 		creditsGranted: record.creditsPurchased,
 		grantedAt: new Date().toISOString()
 	});
+	// Email notifikasi kredit AI masuk
+	const user = await userRepository.getById(record.userId);
+	if (user) {
+		emailNotification
+			.aiTopupGranted(record, user, creditRow?.topupBalance ?? record.creditsPurchased)
+			.catch(console.error);
+	}
 }
 
 export const paymentService = {
@@ -311,7 +320,13 @@ export const paymentService = {
 			}
 		});
 
-		return { payment: updated ?? payment, paymentLinkUrl: result.paymentLinkUrl };
+		const finalPayment = updated ?? payment;
+		// Email pending — ingatkan user untuk menyelesaikan pembayaran subscription
+		userRepository.getById(input.userId).then((u) => {
+			if (u) emailNotification.paymentPending(finalPayment, u, result.paymentLinkUrl).catch(console.error);
+		}).catch(console.error);
+
+		return { payment: finalPayment, paymentLinkUrl: result.paymentLinkUrl };
 	},
 	createTopup: async (input: {
 		userId: string;
@@ -375,7 +390,13 @@ export const paymentService = {
 			}
 		});
 
-		return { payment: updated ?? payment, paymentLinkUrl: result.paymentLinkUrl };
+		const finalPaymentTopup = updated ?? payment;
+		// Email pending — ingatkan user untuk menyelesaikan pembayaran topup
+		userRepository.getById(input.userId).then((u) => {
+			if (u) emailNotification.paymentPending(finalPaymentTopup, u, result.paymentLinkUrl).catch(console.error);
+		}).catch(console.error);
+
+		return { payment: finalPaymentTopup, paymentLinkUrl: result.paymentLinkUrl };
 	},
 	handleWebhookEvent: async (
 		provider: { normalizeStatus: (s?: string) => PaymentStatus },
@@ -411,6 +432,11 @@ export const paymentService = {
 				await grantTopupForPayment(record);
 			} else {
 				await activateMembershipForPayment(record);
+				// Email receipt untuk subscription — topup sudah dihandle di grantTopupForPayment
+				const user = await userRepository.getById(record.userId);
+				if (user) {
+					emailNotification.paymentSucceeded(record, user).catch(console.error);
+				}
 			}
 			return { payment: record, skipped: false };
 		}
@@ -419,7 +445,13 @@ export const paymentService = {
 				message: `Pembayaran ${event.status ?? 'gagal'} via webhook`,
 				metadata: meta
 			});
-			return { payment: ok ?? payment, skipped: false };
+			const failed = ok ?? payment;
+			// Email notifikasi gagal
+			const user = await userRepository.getById(failed.userId);
+			if (user) {
+				emailNotification.paymentFailed(failed, user).catch(console.error);
+			}
+			return { payment: failed, skipped: false };
 		}
 		// pending: just enrich metadata.
 		await paymentService.appendMetadata(payment.id, meta);

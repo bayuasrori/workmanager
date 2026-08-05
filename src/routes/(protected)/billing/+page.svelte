@@ -35,6 +35,41 @@
 
 	const payablePlans = $derived(data.plans.filter((p) => Number(p.price ?? 0) > 0));
 
+	const formatLimit = (v: unknown, suffix = ''): string => {
+		if (v === null || v === undefined) return 'Tak terbatas';
+		if (typeof v === 'number' && !Number.isFinite(v)) return 'Tak terbatas';
+		return Number(v).toLocaleString('id-ID') + suffix;
+	};
+
+	const planFeatures = $derived(
+		data.plans.map((p) => {
+			const l = (p.limits ?? {}) as Record<string, unknown>;
+			const feats = (l.features ?? {}) as Record<string, boolean>;
+			return {
+				id: p.id,
+				isActive: data.activeMembership?.membershipTypeId === p.id,
+				rows: [
+					{ label: 'Maks proyek', val: formatLimit(l.maxProjects) },
+					{ label: 'Task per proyek', val: formatLimit(l.maxTasksPerProject) },
+					{ label: 'Anggota tim', val: formatLimit(l.maxOrgMembers) },
+					{ label: 'Penyimpanan', val: formatLimit(l.storageMb, ' MB') },
+					{ label: 'AI per bulan', val: formatLimit(l.aiMonthly, '×') },
+					{ label: 'Riwayat aktivitas', val: formatLimit(l.activityHistoryDays, ' hari') },
+					{ label: 'Integrasi', val: formatLimit(l.maxIntegrations) }
+				],
+				featList: [
+					{ label: 'AI Automation', ok: feats.aiAutomation ?? false },
+					{ label: 'Public Board', ok: feats.publicBoard ?? false },
+					{ label: 'Timeline Penuh', ok: feats.timelineFull ?? false },
+					{ label: 'Custom Status', ok: feats.customStatus ?? false },
+					{ label: 'Export Data', ok: feats.export ?? false },
+					{ label: 'Integrasi Pihak Ketiga', ok: feats.integrations ?? false },
+					{ label: 'Custom Branding', ok: feats.customBranding ?? false }
+				]
+			};
+		})
+	);
+
 	const aiRemainingMonthly = $derived(Math.max(0, data.ai.monthlyAllowance - data.ai.monthlyUsed));
 
 	const buyPlan = async (planId: string, isTeam: boolean) => {
@@ -118,10 +153,16 @@
 	<section class="mt-8">
 		<h2 class="mb-4 text-lg font-semibold">Pilih Plan</h2>
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-			{#each payablePlans as plan (plan.id)}
-				<div class="card bg-base-100 shadow-md border border-base-200">
-					<div class="card-body">
-						<h3 class="card-title capitalize">{plan.name}</h3>
+			{#each data.plans as plan (plan.id)}
+				{@const pf = planFeatures.find((f) => f.id === plan.id)!}
+				<div class="card bg-base-100 shadow-md border border-base-200 flex flex-col">
+					<div class="card-body flex-1">
+						<h3 class="card-title capitalize">
+							{plan.name}
+							{#if pf.isActive}
+								<span class="badge badge-success badge-xs">Aktif</span>
+							{/if}
+						</h3>
 						<p class="text-sm opacity-70">{plan.description ?? ''}</p>
 						<div class="mt-2 text-2xl font-bold">
 							{formatIDR(plan.price)}
@@ -130,35 +171,58 @@
 							>
 						</div>
 
-						{#if plan.id === 'team'}
-							<label class="mt-2 flex items-center gap-2 text-sm">
-								Seat
-								<input
-									type="number"
-									class="input input-bordered input-sm w-24"
-									min="3"
-									bind:value={teamSeats}
-								/>
-								<span class="opacity-60"
-									>× {formatIDR(plan.price)} = {formatIDR(Number(plan.price) * teamSeats)}</span
-								>
-							</label>
-						{/if}
+						<ul class="mt-3 space-y-1 text-xs">
+							{#each pf.rows as r}
+								<li class="flex justify-between">
+									<span class="opacity-70">{r.label}</span>
+									<span class="font-medium">{r.val}</span>
+								</li>
+							{/each}
+						</ul>
+						<div class="divider text-xs my-1">Fitur</div>
+						<ul class="space-y-0.5 text-xs">
+							{#each pf.featList as f}
+								<li class="flex items-center gap-1">
+									{#if f.ok}
+										<svg class="size-3 text-success" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+									{:else}
+										<svg class="size-3 text-base-300" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+									{/if}
+									<span class={f.ok ? '' : 'opacity-40'}>{f.label}</span>
+								</li>
+							{/each}
+						</ul>
 
-						<div class="mt-4 card-actions justify-end">
-							<button
-								type="button"
-								class="btn btn-primary btn-sm"
-								onclick={() => buyPlan(plan.id, plan.id === 'team')}
-								disabled={redirecting !== null}
-							>
-								{#if redirecting?.kind === 'plan' && redirecting.id === plan.id}
-									<span class="loading loading-spinner loading-xs"></span> Memproses...
-								{:else}
-									Beli
-								{/if}
-							</button>
-						</div>
+						{#if Number(plan.price ?? 0) > 0}
+							{#if plan.id === 'team'}
+								<label class="mt-2 flex items-center gap-2 text-sm">
+									Seat
+									<input
+										type="number"
+										class="input input-bordered input-sm w-24"
+										min="3"
+										bind:value={teamSeats}
+									/>
+									<span class="opacity-60"
+										>× {formatIDR(plan.price)} = {formatIDR(Number(plan.price) * teamSeats)}</span
+									>
+								</label>
+							{/if}
+							<div class="mt-auto card-actions justify-end pt-3">
+								<button
+									type="button"
+									class="btn btn-primary btn-sm w-full"
+									onclick={() => buyPlan(plan.id, plan.id === 'team')}
+									disabled={redirecting !== null}
+								>
+									{#if redirecting?.kind === 'plan' && redirecting.id === plan.id}
+										<span class="loading loading-spinner loading-xs"></span> Memproses...
+									{:else}
+										Beli
+									{/if}
+								</button>
+							</div>
+						{/if}
 					</div>
 				</div>
 			{/each}

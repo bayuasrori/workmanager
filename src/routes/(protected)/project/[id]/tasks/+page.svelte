@@ -19,7 +19,8 @@
 	const projectId = $derived($page.params.id ?? '');
 	const statusFilter = $derived($page.url.searchParams.get('status') || undefined);
 	// Guard empty projectId (e.g. during route teardown) so we don't query a uuid column with "".
-	const data = $derived(projectId ? await getProjectTasks({ projectId, statusId: statusFilter }) : null);
+	const tasksQuery = $derived(projectId ? getProjectTasks({ projectId, statusId: statusFilter }) : null);
+	const data = $derived(tasksQuery ? await tasksQuery : null);
 
 	// Local override state for optimistic updates; null = fall back to server data
 	let localProject = $state<NonNullable<typeof data>['project'] | null>(null);

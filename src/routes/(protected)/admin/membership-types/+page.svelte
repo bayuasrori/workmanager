@@ -17,7 +17,9 @@
 		price: 0,
 		currency: 'IDR',
 		durationMonths: 1,
-		isDefault: false
+		isDefault: false,
+		limits: null as Record<string, unknown> | null,
+		features: {} as Record<string, boolean>
 	});
 
 	const formatIDR = (value: string | number | null | undefined) => {
@@ -38,7 +40,9 @@
 			price: 0,
 			currency: 'IDR',
 			durationMonths: 1,
-			isDefault: false
+			isDefault: false,
+			limits: null,
+			features: {}
 		};
 		editId = null;
 	};
@@ -52,12 +56,21 @@
 			price: Number(t.price ?? 0),
 			currency: t.currency ?? 'IDR',
 			durationMonths: t.durationMonths ?? 1,
-			isDefault: t.isDefault ?? false
+			isDefault: t.isDefault ?? false,
+			limits: t.limits as Record<string, unknown> | null ?? null,
+			features: ((t.limits as Record<string, unknown> | null)?.features as Record<string, boolean>) ?? {}
 		};
 		showForm = true;
 	};
 
 	const submit = async () => {
+		const limits =
+			form.limits || Object.keys(form.features).length > 0
+				? {
+						...(form.limits ?? {}),
+						features: form.features
+					}
+				: undefined;
 		try {
 			if (editId) {
 				await updateMembershipType({
@@ -66,10 +79,11 @@
 					price: form.price,
 					currency: form.currency,
 					durationMonths: form.durationMonths,
-					isDefault: form.isDefault
+					isDefault: form.isDefault,
+					limits
 				}).updates(getMembershipTypes());
 			} else {
-				await createMembershipType(form).updates(getMembershipTypes());
+				await createMembershipType({ ...form, limits }).updates(getMembershipTypes());
 			}
 			showForm = false;
 			resetForm();
@@ -154,6 +168,45 @@
 				<span class="label-text mb-1">Deskripsi</span>
 				<input class="input input-bordered input-sm" bind:value={form.description} />
 			</label>
+
+			<!-- Batasan plan (limits) -->
+			<details class="sm:col-span-2 border border-base-300 rounded-box p-3">
+				<summary class="cursor-pointer text-sm font-semibold">Batasan Plan (opsional)</summary>
+				<div class="grid grid-cols-2 gap-3 mt-3">
+					{#each ['maxProjects','maxTasksPerProject','maxOrgMembers','storageMb','aiMonthly','activityHistoryDays','maxIntegrations'] as key}
+						<label class="form-control">
+							<span class="label-text mb-1 text-xs">{key}</span>
+							<input
+								type="number"
+								class="input input-bordered input-xs"
+								placeholder="(default)"
+								value={(form.limits?.[key] ?? '') as number}
+								oninput={(e) => {
+									const v = (e.target as HTMLInputElement).value;
+									if (!form.limits) form.limits = {};
+									form.limits[key] = v === '' ? (null as unknown as undefined) : Number(v);
+								}}
+							/>
+						</label>
+					{/each}
+				</div>
+				<div class="divider text-xs my-2">Fitur</div>
+				<div class="flex flex-wrap gap-3">
+					{#each ['ai','aiAutomation','publicBoard','timelineFull','customStatus','export','integrations','customBranding'] as feat}
+						<label class="flex items-center gap-1 text-xs">
+							<input
+								type="checkbox"
+								class="checkbox checkbox-xs"
+								checked={form.features[feat] ?? false}
+								onchange={(e) => {
+									form.features[feat] = (e.target as HTMLInputElement).checked;
+								}}
+							/>{feat}</label
+						>
+					{/each}
+				</div>
+			</details>
+
 			<div class="sm:col-span-2 flex gap-2">
 				<button type="submit" class="btn btn-primary btn-sm">{editId ? 'Update' : 'Buat'}</button>
 				<button

@@ -8,13 +8,24 @@ if (!globalThis.crypto) {
 	});
 }
 
-const insertValuesMock = vi.fn();
-const insertMock = vi.fn(() => ({ values: insertValuesMock }));
-const updateWhereMock = vi.fn();
-const updateSetMock = vi.fn(() => ({ where: updateWhereMock }));
-const updateMock = vi.fn(() => ({ set: updateSetMock }));
-const allMock = vi.fn();
-const getMock = vi.fn();
+const {
+	insertValuesMock,
+	insertMock,
+	updateWhereMock,
+	updateSetMock,
+	updateMock,
+	allMock,
+	getMock
+} = vi.hoisted(() => {
+	const insertValuesMock = vi.fn();
+	const insertMock = vi.fn(() => ({ values: insertValuesMock }));
+	const updateWhereMock = vi.fn();
+	const updateSetMock = vi.fn(() => ({ where: updateWhereMock }));
+	const updateMock = vi.fn(() => ({ set: updateSetMock }));
+	const allMock = vi.fn();
+	const getMock = vi.fn();
+	return { insertValuesMock, insertMock, updateWhereMock, updateSetMock, updateMock, allMock, getMock };
+});
 
 vi.mock('../../db', () => ({
 	db: {

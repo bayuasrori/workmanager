@@ -4,3 +4,16 @@
 @plugin "daisyui" {
 	themes: emerald --default;
 }
+
+@theme {
+	--animate-nav-progress: nav-progress 1.5s ease-in-out infinite;
+
+	@keyframes nav-progress {
+		0% {
+			transform: translateX(-100%);
+		}
+		100% {
+			transform: translateX(100%);
+		}
+	}
+}

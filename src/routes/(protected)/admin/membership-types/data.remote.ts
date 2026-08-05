@@ -19,7 +19,8 @@ export const createMembershipType = command(
 		price: v.pipe(v.number(), v.minValue(0)),
 		currency: v.optional(v.pipe(v.string(), v.minLength(3), v.maxLength(3)), 'IDR'),
 		durationMonths: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
-		isDefault: v.optional(v.boolean(), false)
+		isDefault: v.optional(v.boolean(), false),
+		limits: v.optional(v.any())
 	}),
 	async (input) => {
 		requireAdmin(getRequestEvent().locals);
@@ -32,7 +33,8 @@ export const createMembershipType = command(
 			price: String(input.price),
 			currency: input.currency,
 			durationMonths: input.durationMonths,
-			isDefault: input.isDefault
+			isDefault: input.isDefault,
+			limits: input.limits ?? null
 		});
 		return { type: created };
 	}
@@ -45,7 +47,8 @@ export const updateMembershipType = command(
 		price: v.optional(v.number()),
 		currency: v.optional(v.string()),
 		durationMonths: v.optional(v.number()),
-		isDefault: v.optional(v.boolean())
+		isDefault: v.optional(v.boolean()),
+		limits: v.optional(v.any())
 	}),
 	async (input) => {
 		requireAdmin(getRequestEvent().locals);
@@ -56,7 +59,8 @@ export const updateMembershipType = command(
 			price: input.price !== undefined ? String(input.price) : undefined,
 			currency: input.currency,
 			durationMonths: input.durationMonths,
-			isDefault: input.isDefault
+			isDefault: input.isDefault,
+			limits: input.limits !== undefined ? input.limits : undefined
 		});
 		return { type: updated };
 	}

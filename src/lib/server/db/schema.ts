@@ -9,7 +9,9 @@ import {
 	primaryKey,
 	numeric,
 	jsonb,
-	pgEnum
+	pgEnum,
+	index,
+	uniqueIndex
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
@@ -49,13 +51,20 @@ export const user = pgTable('user', {
 		.default(sql`now()`)
 });
 
-export const session = pgTable('session', {
-	id: uuid('id').primaryKey(),
-	userId: uuid('user_id')
-		.notNull()
-		.references(() => user.id),
-	expiresAt: timestamp('expires_at').notNull()
-});
+export const session = pgTable(
+	'session',
+	{
+		id: uuid('id').primaryKey(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => user.id),
+		expiresAt: timestamp('expires_at').notNull()
+	},
+	(table) => ({
+		// Auth lookup per request — hits this index on every page load
+		userIdIdx: index('session_user_id_idx').on(table.userId)
+	})
+);
 
 export const organization = pgTable('organization', {
 	id: uuid('id')
@@ -117,29 +126,41 @@ export const membershipType = pgTable('membership_type', {
 	price: numeric('price', { precision: 12, scale: 2 }).default(sql`0`),
 	currency: varchar('currency', { length: 3 }).default('USD'),
 	durationMonths: integer('duration_months').notNull().default(1),
-	isDefault: boolean('is_default').default(false)
+	isDefault: boolean('is_default').default(false),
+	// Batasan plan (maxProjects, aiMonthly, features, dst.). DB-driven biar admin
+	// bisa edit tanpa deploy. Lihat PlanLimits di src/lib/server/plans.ts.
+	limits: jsonb('limits').$type<Record<string, unknown>>()
 });
 
-export const userMembership = pgTable('user_membership', {
-	id: uuid('id')
-		.primaryKey()
-		.default(sql`gen_random_uuid()`),
-	userId: uuid('user_id')
-		.notNull()
-		.references(() => user.id),
-	membershipTypeId: text('membership_type_id')
-		.notNull()
-		.references(() => membershipType.id),
-	startDate: timestamp('start_date')
-		.notNull()
-		.default(sql`now()`),
-	endDate: timestamp('end_date'),
-	isActive: boolean('is_active').notNull().default(true),
-	// True untuk membership trial (bukan pembayaran). AI quota trial lebih kecil.
-	isTrial: boolean('is_trial').notNull().default(false),
-	// Jumlah seat dibeli (Team per-seat). Null = pakai default plan.
-	seats: integer('seats')
-});
+export const userMembership = pgTable(
+	'user_membership',
+	{
+		id: uuid('id')
+			.primaryKey()
+			.default(sql`gen_random_uuid()`),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => user.id),
+		membershipTypeId: text('membership_type_id')
+			.notNull()
+			.references(() => membershipType.id),
+		startDate: timestamp('start_date')
+			.notNull()
+			.default(sql`now()`),
+		endDate: timestamp('end_date'),
+		isActive: boolean('is_active').notNull().default(true),
+		// True untuk membership trial (bukan pembayaran). AI quota trial lebih kecil.
+		isTrial: boolean('is_trial').notNull().default(false),
+		// Jumlah seat dibeli (Team per-seat). Null = pakai default plan.
+		seats: integer('seats')
+	},
+	(table) => ({
+		// Paling sering: getActiveByUserId() — dipakai setiap entitlement check
+		userActiveIdx: index('user_membership_user_active_idx').on(table.userId, table.isActive),
+		// Untuk query history membership per user
+		userIdIdx: index('user_membership_user_id_idx').on(table.userId)
+	})
+);
 
 export const userCredit = pgTable('user_credit', {
 	userId: uuid('user_id')
@@ -187,18 +208,27 @@ export const task_status = pgTable('task_status', {
 	projectId: uuid('project_id').references(() => project.id)
 });
 
-export const task = pgTable('task', {
-	id: uuid('id')
-		.primaryKey()
-		.default(sql`gen_random_uuid()`),
-	name: varchar('name', { length: 255 }).notNull(),
-	description: text('description'),
-	projectId: uuid('project_id').references(() => project.id),
-	assigneeId: uuid('assignee_id').references(() => user.id),
-	statusId: uuid('status_id').references(() => task_status.id),
-	startDate: timestamp('start_date'),
-	endDate: timestamp('end_date')
-});
+export const task = pgTable(
+	'task',
+	{
+		id: uuid('id')
+			.primaryKey()
+			.default(sql`gen_random_uuid()`),
+		name: varchar('name', { length: 255 }).notNull(),
+		description: text('description'),
+		projectId: uuid('project_id').references(() => project.id),
+		assigneeId: uuid('assignee_id').references(() => user.id),
+		statusId: uuid('status_id').references(() => task_status.id),
+		startDate: timestamp('start_date'),
+		endDate: timestamp('end_date')
+	},
+	(table) => ({
+		// Paling sering: getByProjectId() — dipakai di kanban board
+		projectIdIdx: index('task_project_id_idx').on(table.projectId),
+		// Untuk "tasks assigned to me" di dashboard
+		assigneeIdx: index('task_assignee_id_idx').on(table.assigneeId)
+	})
+);
 
 export const taskComment = pgTable('task_comment', {
 	id: uuid('id')
@@ -212,24 +242,35 @@ export const taskComment = pgTable('task_comment', {
 		.default(sql`now()`)
 });
 
-export const activity = pgTable('activity', {
-	id: uuid('id')
-		.primaryKey()
-		.default(sql`gen_random_uuid()`),
-	projectId: uuid('project_id')
-		.notNull()
-		.references(() => project.id),
-	taskId: uuid('task_id').references(() => task.id),
-	userId: uuid('user_id')
-		.notNull()
-		.references(() => user.id),
-	type: varchar('type', { length: 255 }).notNull(),
-	description: text('description'),
-	metadata: text('metadata'),
-	createdAt: timestamp('created_at')
-		.notNull()
-		.default(sql`now()`)
-});
+export const activity = pgTable(
+	'activity',
+	{
+		id: uuid('id')
+			.primaryKey()
+			.default(sql`gen_random_uuid()`),
+		projectId: uuid('project_id')
+			.notNull()
+			.references(() => project.id),
+		taskId: uuid('task_id').references(() => task.id),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => user.id),
+		type: varchar('type', { length: 255 }).notNull(),
+		description: text('description'),
+		metadata: text('metadata'),
+		createdAt: timestamp('created_at')
+			.notNull()
+			.default(sql`now()`)
+	},
+	(table) => ({
+		// Untuk activity feed per project
+		projectIdIdx: index('activity_project_id_idx').on(table.projectId),
+		// Untuk recent activity per user di dashboard
+		userIdIdx: index('activity_user_id_idx').on(table.userId),
+		// Untuk sorting feed terbaru (project + waktu)
+		projectCreatedIdx: index('activity_project_created_idx').on(table.projectId, table.createdAt)
+	})
+);
 
 export const payment = pgTable('payment', {
 	id: uuid('id')

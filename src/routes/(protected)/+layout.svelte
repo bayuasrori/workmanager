@@ -2,7 +2,64 @@
 	import { onMount } from 'svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import { browser } from '$app/environment';
+	import { beforeNavigate, afterNavigate } from '$app/navigation';
 	import { getLayoutData } from './layout.remote';
+	import { navigationTarget } from '$lib/stores';
+
+	let showLoading = $state(false);
+	let loadingTimer: ReturnType<typeof setTimeout> | null = null;
+	let hideTimer: ReturnType<typeof setTimeout> | null = null;
+
+	const clearTimers = () => {
+		if (loadingTimer) {
+			clearTimeout(loadingTimer);
+			loadingTimer = null;
+		}
+		if (hideTimer) {
+			clearTimeout(hideTimer);
+			hideTimer = null;
+		}
+	};
+
+	beforeNavigate(({ to }) => {
+		clearTimers();
+		if (to?.url) {
+			navigationTarget.set(to.url.pathname);
+		}
+	});
+
+	// afterNavigate = hard reset. Navigation fully done, kill all loading state.
+	afterNavigate(() => {
+		clearTimers();
+		navigationTarget.set(null);
+		showLoading = false;
+	});
+
+	$effect(() => {
+		if ($navigationTarget) {
+			if (hideTimer) {
+				clearTimeout(hideTimer);
+				hideTimer = null;
+			}
+			if (!showLoading && !loadingTimer) {
+				loadingTimer = setTimeout(() => {
+					loadingTimer = null;
+					showLoading = true;
+				}, 100);
+			}
+		} else {
+			if (loadingTimer) {
+				clearTimeout(loadingTimer);
+				loadingTimer = null;
+			}
+			if (showLoading && !hideTimer) {
+				hideTimer = setTimeout(() => {
+					hideTimer = null;
+					showLoading = false;
+				}, 50);
+			}
+		}
+	});
 
 	let { children } = $props();
 	const layoutData = $derived(await getLayoutData());
@@ -43,7 +100,26 @@
 
 <svelte:window onkeydown={handleSidebarKeydown} />
 
-<div class="flex flex-col min-h-screen">
+<svelte:boundary>
+	{#snippet pending()}
+		<div class="min-h-screen flex items-center justify-center bg-base-200">
+			<span class="loading loading-spinner loading-lg text-primary"></span>
+		</div>
+	{/snippet}
+
+	<div class="flex flex-col min-h-screen">
+	<!-- Global navigation progress bar -->
+	{#if showLoading}
+		<div
+			class="fixed top-0 left-0 right-0 z-[9999] h-[3px] overflow-hidden"
+			aria-hidden="true"
+		>
+			<div
+				class="h-full bg-gradient-to-r from-primary via-secondary to-primary animate-nav-progress"
+			></div>
+		</div>
+	{/if}
+
 	<div
 		class="navbar sticky top-0 z-40 w-full bg-gradient-to-r from-primary/10 via-base-100 to-secondary/10 backdrop-blur supports-[backdrop-filter]:bg-base-100/80 shadow-sm relative px-3 sm:px-4"
 	>
@@ -232,8 +308,21 @@
 		<div class="hidden lg:block flex-shrink-0">
 			<Sidebar data={layoutData} />
 		</div>
-		<main class="flex-grow min-w-0 p-4">
+		<main class="flex-grow min-w-0 p-4 relative">
+			{#if showLoading}
+				<!-- Overlay transparan + spinner kecil di pojok kanan atas -->
+				<div
+					class="absolute inset-0 z-10 bg-base-100/40 backdrop-blur-[1px] flex items-start justify-end p-4 pointer-events-none"
+					aria-hidden="true"
+				>
+					<div class="flex items-center gap-2 bg-base-100/80 border border-base-300 rounded-full px-3 py-1.5 shadow-sm text-xs text-base-content/60">
+						<span class="loading loading-spinner loading-xs"></span>
+						Memuat…
+					</div>
+				</div>
+			{/if}
 			{@render children?.()}
-		</main>
+			</main>
+		</div>
 	</div>
-</div>
+</svelte:boundary>

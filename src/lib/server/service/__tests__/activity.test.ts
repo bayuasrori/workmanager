@@ -9,10 +9,13 @@ if (!globalThis.crypto) {
 	});
 }
 
-const valuesMock = vi.fn();
-const insertMock = vi.fn(() => ({ values: valuesMock }));
-const findManyMock = vi.fn();
-const allMock = vi.fn();
+const { valuesMock, insertMock, findManyMock, allMock } = vi.hoisted(() => {
+	const valuesMock = vi.fn();
+	const insertMock = vi.fn(() => ({ values: valuesMock }));
+	const findManyMock = vi.fn();
+	const allMock = vi.fn();
+	return { valuesMock, insertMock, findManyMock, allMock };
+});
 
 vi.mock('../../db', () => ({
 	db: {

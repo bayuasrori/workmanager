@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { userMembership } from '../db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, gt, or, isNull, sql } from 'drizzle-orm';
 
 export const userMembershipRepository = {
 	getById: async (id: string) => {
@@ -9,6 +9,32 @@ export const userMembershipRepository = {
 	},
 	getAll: async () => {
 		return await db.select().from(userMembership);
+	},
+	/** Semua membership milik satu user (tanpa filter aktif). */
+	getByUserId: async (userId: string) => {
+		return await db
+			.select()
+			.from(userMembership)
+			.where(eq(userMembership.userId, userId));
+	},
+	/**
+	 * Membership aktif user — query langsung ke DB, tidak `getAll()` + filter.
+	 * "Aktif" = isActive true DAN (endDate null ATAU endDate di masa depan).
+	 */
+	getActiveByUserId: async (userId: string) => {
+		const now = new Date();
+		const rows = await db
+			.select()
+			.from(userMembership)
+			.where(
+				and(
+					eq(userMembership.userId, userId),
+					eq(userMembership.isActive, true),
+					or(isNull(userMembership.endDate), gt(userMembership.endDate, now))
+				)
+			)
+			.limit(1);
+		return rows[0] ?? null;
 	},
 	create: async (item: Omit<typeof userMembership.$inferInsert, 'id'>) => {
 		const id = crypto.randomUUID();

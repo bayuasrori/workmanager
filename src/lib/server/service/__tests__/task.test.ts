@@ -8,22 +8,58 @@ if (!globalThis.crypto) {
 	});
 }
 
-const insertValuesMock = vi.fn();
-const insertMock = vi.fn(() => ({ values: insertValuesMock }));
-const updateReturningMock = vi.fn();
-const updateWhereMock = vi.fn(() => ({ returning: updateReturningMock }));
-const updateSetMock = vi.fn(() => ({ where: updateWhereMock }));
-const updateMock = vi.fn(() => ({ set: updateSetMock }));
-const deleteWhereMock = vi.fn();
-const deleteMock = vi.fn(() => ({ where: deleteWhereMock }));
-const taskFindFirstMock = vi.fn();
-const taskFindManyMock = vi.fn();
+const {
+	insertReturningMock,
+	insertValuesMock,
+	insertMock,
+	updateReturningMock,
+	updateWhereMock,
+	updateSetMock,
+	updateMock,
+	deleteWhereMock,
+	deleteMock,
+	transactionMock,
+	taskFindFirstMock,
+	taskFindManyMock
+} = vi.hoisted(() => {
+	const insertReturningMock = vi.fn();
+	const insertValuesMock = vi.fn(() => ({ returning: insertReturningMock }));
+	const insertMock = vi.fn(() => ({ values: insertValuesMock }));
+	const updateReturningMock = vi.fn();
+	const updateWhereMock = vi.fn(() => ({ returning: updateReturningMock }));
+	const updateSetMock = vi.fn(() => ({ where: updateWhereMock }));
+	const updateMock = vi.fn(() => ({ set: updateSetMock }));
+	const deleteWhereMock = vi.fn();
+	const deleteMock = vi.fn(() => ({ where: deleteWhereMock }));
+	const txDeleteWhereMock = vi.fn();
+	const txDeleteMock = vi.fn(() => ({ where: txDeleteWhereMock }));
+	const transactionMock = vi.fn(async (cb: (tx: { delete: typeof txDeleteMock }) => unknown) =>
+		cb({ delete: txDeleteMock })
+	);
+	const taskFindFirstMock = vi.fn();
+	const taskFindManyMock = vi.fn();
+	return {
+		insertReturningMock,
+		insertValuesMock,
+		insertMock,
+		updateReturningMock,
+		updateWhereMock,
+		updateSetMock,
+		updateMock,
+		deleteWhereMock,
+		deleteMock,
+		transactionMock,
+		taskFindFirstMock,
+		taskFindManyMock
+	};
+});
 
 vi.mock('../../db', () => ({
 	db: {
 		insert: insertMock,
 		update: updateMock,
 		delete: deleteMock,
+		transaction: transactionMock,
 		query: {
 			task: {
 				findFirst: taskFindFirstMock,
@@ -33,7 +69,7 @@ vi.mock('../../db', () => ({
 	}
 }));
 
-const recordMock = vi.fn();
+const { recordMock } = vi.hoisted(() => ({ recordMock: vi.fn() }));
 
 vi.mock('../activity', () => ({
 	activityService: {
@@ -46,7 +82,7 @@ import { taskService } from '../task';
 describe('taskService.create', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		insertValuesMock.mockResolvedValue([{ id: '00000000-0000-0000-0000-000000000000' }]);
+		insertReturningMock.mockResolvedValue([{ id: '00000000-0000-0000-0000-000000000000' }]);
 	});
 
 	it('records activity when actorId and projectId are provided', async () => {

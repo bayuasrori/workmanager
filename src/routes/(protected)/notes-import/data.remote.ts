@@ -7,6 +7,8 @@ import {
 	taskService,
 	consumeAiCredit
 } from '$lib/server/service';
+import { getEffectiveLimits } from '$lib/server/service/entitlement';
+import { userCreditRepository } from '$lib/server/repositories';
 import {
 	parseNotesToTasks,
 	resolveTaskFields,
@@ -49,7 +51,16 @@ export const getNotesImportData = query(
 			members = ctx.members;
 		}
 
-		return { projects, statuses, members };
+		let aiRemaining = 0;
+		const limits = await getEffectiveLimits(userId);
+		if (limits.features.ai) {
+			const credit = await userCreditRepository.getByUserId(userId);
+			const monthlyUsed = credit?.monthlyUsed ?? 0;
+			const topupBalance = credit?.topupBalance ?? 0;
+			aiRemaining = Math.max(0, limits.aiMonthly - monthlyUsed) + topupBalance;
+		}
+
+		return { projects, statuses, members, aiRemaining, hasAiFeature: limits.features.ai };
 	}
 );
 
@@ -79,7 +90,23 @@ export const createTasksFromDrafts = command(
 		const userId = locals.user?.id;
 		if (!userId) error(401, 'Unauthorized');
 		await ensureMembership(projectId, userId);
-		const ctx = await loadProjectContext(projectId);
+		let ctx = await loadProjectContext(projectId);
+
+		// Jika proyek belum punya status sama sekali, buat status yang diajukan AI.
+		if (ctx.statuses.length === 0) {
+			const proposedNames = [
+				...new Set(
+					drafts.map((d) => d.statusName?.trim()).filter((n): n is string => !!n)
+				)
+			];
+			for (let i = 0; i < proposedNames.length; i++) {
+				const created = await taskStatusService.create(
+					{ name: proposedNames[i], order: i, projectId },
+					{ actorId: userId }
+				);
+				ctx.statuses.push({ id: created.id, name: created.name });
+			}
+		}
 
 		let created = 0;
 		for (const draft of drafts) {

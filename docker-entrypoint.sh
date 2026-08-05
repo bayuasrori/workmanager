@@ -1,4 +1,8 @@
 #!/bin/sh
-sed -i "s/|| 'https'/|| 'http'/" /app/build/handler.js
-npx --yes tsx node_modules/.bin/drizzle-kit push --force
+set -e
+
+echo "Running database migrations..."
+node node_modules/drizzle-kit/bin.cjs push --force
+
+echo "Starting server..."
 exec node build

@@ -1,5 +1,10 @@
 import { error } from '@sveltejs/kit';
-import { userMembershipRepository, userCreditRepository, userRepository } from '../repositories';
+import {
+	userMembershipRepository,
+	userCreditRepository,
+	userRepository,
+	membershipTypeRepository
+} from '../repositories';
 import { projectService, taskService, organizationMemberService } from './index';
 import {
 	PLAN_LIMITS,
@@ -12,6 +17,35 @@ import {
 
 const TEAM_DEFAULT_SEATS = 3;
 const MS_PER_DAY = 86_400_000;
+const INF = Number.POSITIVE_INFINITY;
+
+/**
+ * Limit disimpan sbg JSONB di tabel membership_type (DB-driven, admin bisa edit).
+ * `null` di DB berarti unlimited -> diconvert ke Infinity. Field yg ga ada di DB
+ * diisi dari fallback hardcoded (PLAN_LIMITS) biar plan lama tetap jalan.
+ */
+function resolveLimits(raw: Record<string, unknown> | null | undefined, fallback: PlanLimits): PlanLimits {
+	const src = (raw ?? {}) as Record<string, unknown>;
+	const num = (k: string, def: number) => {
+		const v = src[k];
+		return v === null || v === undefined ? (def === null ? INF : def) : Number(v);
+	};
+	const feats = { ...fallback.features, ...((src.features as Record<string, unknown>) ?? {}) } as Record<
+		FeatureKey,
+		boolean
+	>;
+	return {
+		maxProjects: num('maxProjects', fallback.maxProjects),
+		maxTasksPerProject: num('maxTasksPerProject', fallback.maxTasksPerProject),
+		// maxOrgMembers: null di DB = pakai seats (resolve di getEffectiveLimits).
+		maxOrgMembers: src.maxOrgMembers === undefined ? fallback.maxOrgMembers : (src.maxOrgMembers as number | null),
+		storageMb: num('storageMb', fallback.storageMb),
+		aiMonthly: num('aiMonthly', fallback.aiMonthly),
+		activityHistoryDays: num('activityHistoryDays', fallback.activityHistoryDays),
+		maxIntegrations: num('maxIntegrations', fallback.maxIntegrations),
+		features: feats
+	};
+}
 
 /** Mulai trial Pro 14 hari utk user baru. Idempoten: skip kalau udah ada membership aktif. */
 export async function startTrial(userId: string) {
@@ -35,12 +69,7 @@ export interface ResolvedPlan {
 }
 
 async function getActiveMembership(userId: string) {
-	const all = await userMembershipRepository.getAll();
-	return (
-		all.find(
-			(m) => m.userId === userId && m.isActive && (!m.endDate || new Date(m.endDate) > new Date())
-		) ?? null
-	);
+	return await userMembershipRepository.getActiveByUserId(userId);
 }
 
 /** Plan efektif user. Default `free` kalau ga ada membership aktif. */
@@ -55,20 +84,29 @@ export async function getPlan(userId: string): Promise<ResolvedPlan> {
 	};
 }
 
-/** Batasan efektif (trial override AI quota kecil). */
+/** Batasan efektif (dari DB membership_type.limits, trial override AI quota kecil). */
 export async function getEffectiveLimits(
 	userId: string
 ): Promise<PlanLimits & { isTrial: boolean; seats: number }> {
 	// Admin bypass semua limit.
 	const u = await userRepository.getById(userId);
 	if (u?.isAdmin) {
-		return { ...PLAN_LIMITS.team, isTrial: false, seats: Number.POSITIVE_INFINITY };
+		return { ...PLAN_LIMITS.team, isTrial: false, seats: INF };
 	}
 	const { plan, isTrial, seats } = await getPlan(userId);
-	const base = PLAN_LIMITS[plan];
+
+	// Ambil limits dari DB; fallback ke hardcoded PLAN_LIMITS kalau row/limits ga ada.
+	let dbLimits: Record<string, unknown> | null = null;
+	const m = await getActiveMembership(userId);
+	if (m) {
+		const mt = await membershipTypeRepository.getById(m.membershipTypeId);
+		dbLimits = (mt?.limits as Record<string, unknown> | null | undefined) ?? null;
+	}
+	const base = resolveLimits(dbLimits, PLAN_LIMITS[plan]);
+
 	const limits: PlanLimits = {
 		...base,
-		// Team: max anggota = seats dibeli (atau default).
+		// Team: max anggota = seats dibeli (atau default) kalau DB null.
 		maxOrgMembers: base.maxOrgMembers === null ? seats : base.maxOrgMembers,
 		// Trial: AI dibatasi, bukan pakai kuota plan asli.
 		aiMonthly: isTrial ? TRIAL_AI_MONTHLY : base.aiMonthly

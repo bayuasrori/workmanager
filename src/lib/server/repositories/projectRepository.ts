@@ -16,6 +16,19 @@ export const projectRepository = {
 		const data = await db.select().from(project).where(eq(project.id, id));
 		return data[0];
 	},
+	getBySlug: async (slug: string) => {
+		const data = await db.select().from(project).where(eq(project.slug, slug));
+		return data[0] ?? null;
+	},
+	/** Cek apakah slug sudah dipakai — efisien karena hanya fetch 1 row. */
+	slugExists: async (slug: string) => {
+		const rows = await db
+			.select({ id: project.id })
+			.from(project)
+			.where(eq(project.slug, slug))
+			.limit(1);
+		return rows.length > 0;
+	},
 	isMember: async (projectId: string, userId: string) => {
 		const member = await db
 			.select()

@@ -6,12 +6,13 @@
 
 	const selectedProjectParam = $derived($page.url.searchParams.get('projectId'));
 	const hasProjectParam = $derived($page.url.searchParams.has('projectId'));
-	const data = $derived(
-		await getDashboardData({
+	const dashboardQuery = $derived(
+		getDashboardData({
 			projectId: selectedProjectParam ?? undefined,
 			hasProjectParam
 		})
 	);
+	const data = $derived(await dashboardQuery);
 
 	const projects = $derived(data.projects ?? []);
 	const tasksStatus = $derived(data.tasks_status ?? []);

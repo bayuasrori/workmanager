@@ -15,9 +15,50 @@ const KNOWN_PROVIDERS = new Set<string>([
 	'custom'
 ]);
 
+// ── Rate limiter (in-memory, per IP) ─────────────────────────────────────────
+// Simple sliding-window counter: 30 req / 60 s per IP.
+// Cukup untuk single-instance SvelteKit; kalau multi-instance pakai Redis.
+const RATE_LIMIT = 30;
+const RATE_WINDOW_MS = 60_000;
+const ipHits = new Map<string, { count: number; windowStart: number }>();
+
+function isRateLimited(ip: string): boolean {
+	const now = Date.now();
+	const entry = ipHits.get(ip);
+
+	if (!entry || now - entry.windowStart > RATE_WINDOW_MS) {
+		// Baru atau window sudah expired — reset counter
+		ipHits.set(ip, { count: 1, windowStart: now });
+		return false;
+	}
+
+	entry.count += 1;
+	if (entry.count > RATE_LIMIT) {
+		return true;
+	}
+	return false;
+}
+
+// Bersihkan entries lama tiap 5 menit biar Map tidak tumbuh selamanya
+setInterval(() => {
+	const cutoff = Date.now() - RATE_WINDOW_MS;
+	for (const [key, val] of ipHits) {
+		if (val.windowStart < cutoff) ipHits.delete(key);
+	}
+}, 5 * 60_000);
+
 export const GET: RequestHandler = () => json({ ok: true });
 
 export const POST: RequestHandler = async ({ params, request }) => {
+	// Rate limit sebelum operasi apapun, termasuk DB lookup
+	const clientIp =
+		request.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
+		request.headers.get('x-real-ip') ??
+		'unknown';
+	if (isRateLimited(clientIp)) {
+		return json({ error: 'too many requests' }, { status: 429 });
+	}
+
 	const providerName = params.provider;
 	if (!KNOWN_PROVIDERS.has(providerName)) {
 		return json({ error: 'unknown provider' }, { status: 404 });

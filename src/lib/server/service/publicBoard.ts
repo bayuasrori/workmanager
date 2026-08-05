@@ -9,22 +9,17 @@ function generateSlug(name: string): string {
 		.replace(/^-+|-+$/g, '');
 }
 
-// Helper function to ensure slug is unique
+// Helper function to ensure slug is unique — pakai slugExists() bukan getAll() loop
 async function ensureUniqueSlug(baseSlug: string): Promise<string> {
 	let slug = baseSlug;
 	let counter = 1;
 
-	while (true) {
-		const allProjects = await projectRepository.getAll();
-		const existing = allProjects.find(p => p.slug === slug);
-
-		if (!existing) {
-			return slug;
-		}
-
+	while (await projectRepository.slugExists(slug)) {
 		slug = `${baseSlug}-${counter}`;
 		counter++;
 	}
+
+	return slug;
 }
 
 // Get or create the public organization
@@ -61,11 +56,10 @@ export const publicBoardService = {
 	},
 
 	getBySlug: async (slug: string) => {
-		// Get the project by checking all projects (since slug is unique)
-		const allProjects = await projectRepository.getAll();
-		const projectData = allProjects.find(p => p.slug === slug && p.isPublic);
+		// Query langsung pakai index slug, tidak load semua project
+		const projectData = await projectRepository.getBySlug(slug);
 
-		if (!projectData) {
+		if (!projectData || !projectData.isPublic) {
 			return null;
 		}
 
@@ -86,7 +80,8 @@ export const publicBoardService = {
 		const projects = await projectRepository.getAll();
 		const publicProjects = projects.filter(p => p.isPublic);
 
-		// Get tasks for each project
+		// N+1: tiap project satu query task — masih oke untuk jumlah project kecil.
+		// Kalau project sudah ratusan, pertimbangkan single JOIN query.
 		const projectsWithTasks = await Promise.all(
 			publicProjects.map(async (project) => {
 				const tasks = await taskRepository.getByProjectId(project.id);
