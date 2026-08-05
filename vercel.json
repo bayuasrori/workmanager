@@ -1,7 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "outputDirectory": ".svelte-kit/output",
-  "installCommand": "npm install --legacy-peer-deps",
-  "buildCommand": "npm run build",
+  "installCommand": "bun install --frozen-lockfile",
+  "buildCommand": "bun run build",
   "framework": "sveltekit"
 }
