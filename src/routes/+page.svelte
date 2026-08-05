@@ -1,7 +1,14 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import type { PlanCard } from './+page.server';
 
 	let { data }: { data: PageData } = $props();
+
+	// plans is returned by +page.server.ts but not yet visible in generated PageData —
+	// cast safely since the server always returns the field (empty array on DB error).
+	const plans: PlanCard[] = $derived(
+		((data as PageData & { plans?: PlanCard[] }).plans) ?? []
+	);
 
 	const PLAN_LABELS: Record<string, string> = {
 		free: 'Gratis',
@@ -354,7 +361,7 @@
 </section>
 
 <!-- Pricing -->
-{#if data.plans.length > 0}
+{#if plans.length > 0}
 	<section id="harga" class="lp-pricing">
 		<div class="lp-pricing-inner">
 			<div class="lp-pricing-header">
@@ -364,7 +371,7 @@
 			</div>
 
 			<div class="lp-plans">
-				{#each data.plans as plan (plan.id)}
+				{#each plans as plan (plan.id)}
 					<div class="lp-plan" class:lp-plan--featured={plan.isHighlighted}>
 						{#if plan.isHighlighted}
 							<div class="lp-plan-badge">Paling populer</div>

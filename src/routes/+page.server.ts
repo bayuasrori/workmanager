@@ -25,7 +25,7 @@ export type PlanCard = {
 	};
 };
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load = (async ({ locals }) => {
 	let plans: PlanCard[] = [];
 
 	try {
@@ -67,4 +67,4 @@ export const load: PageServerLoad = async ({ locals }) => {
 		return { user: locals.user, isAuthenticated: true, plans };
 	}
 	return { user: null, isAuthenticated: false, plans };
-};
+}) satisfies PageServerLoad;
