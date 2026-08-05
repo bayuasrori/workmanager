@@ -2,6 +2,29 @@
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+
+	const PLAN_LABELS: Record<string, string> = {
+		free: 'Gratis',
+		pro: 'Pro',
+		team: 'Tim'
+	};
+
+	function fmt(v: number | null): string {
+		if (v === null || !isFinite(v)) return 'Tak terbatas';
+		return v.toLocaleString('id-ID');
+	}
+
+	function fmtStorage(mb: number): string {
+		if (!isFinite(mb)) return 'Tak terbatas';
+		if (mb >= 1024) return `${mb / 1024} GB`;
+		return `${mb} MB`;
+	}
+
+	function fmtPrice(price: number, currency: string): string {
+		if (price === 0) return 'Gratis';
+		if (currency === 'IDR') return `Rp\u00a0${price.toLocaleString('id-ID')}`;
+		return `$${price}`;
+	}
 </script>
 
 <svelte:head>
@@ -329,6 +352,107 @@
 		</div>
 	</div>
 </section>
+
+<!-- Pricing -->
+{#if data.plans.length > 0}
+	<section id="harga" class="lp-pricing">
+		<div class="lp-pricing-inner">
+			<div class="lp-pricing-header">
+				<span class="lp-eyebrow">Harga</span>
+				<h2 class="lp-pricing-heading">Pilih sesuai<br /><em>kebutuhanmu.</em></h2>
+				<p class="lp-pricing-sub">Mulai gratis, upgrade kapan saja.</p>
+			</div>
+
+			<div class="lp-plans">
+				{#each data.plans as plan (plan.id)}
+					<div class="lp-plan" class:lp-plan--featured={plan.isHighlighted}>
+						{#if plan.isHighlighted}
+							<div class="lp-plan-badge">Paling populer</div>
+						{/if}
+
+						<div class="lp-plan-header">
+							<h3 class="lp-plan-name">{PLAN_LABELS[plan.name] ?? plan.name}</h3>
+							<div class="lp-plan-price">{fmtPrice(plan.price, plan.currency)}</div>
+							{#if plan.price > 0}
+								<div class="lp-plan-period">per bulan</div>
+							{:else}
+								<div class="lp-plan-period">selamanya</div>
+							{/if}
+						</div>
+
+						{#if plan.description}
+							<p class="lp-plan-desc">{plan.description}</p>
+						{/if}
+
+						<ul class="lp-plan-specs">
+							<li>
+								<span class="lp-spec-k">Proyek</span>
+								<span class="lp-spec-v">{fmt(plan.maxProjects)}</span>
+							</li>
+							<li>
+								<span class="lp-spec-k">Anggota</span>
+								<span class="lp-spec-v">
+									{plan.maxOrgMembers === null ? 'Per seat' : fmt(plan.maxOrgMembers)}
+								</span>
+							</li>
+							<li>
+								<span class="lp-spec-k">Kredit AI</span>
+								<span class="lp-spec-v">{fmt(plan.aiMonthly)} / bln</span>
+							</li>
+							<li>
+								<span class="lp-spec-k">Penyimpanan</span>
+								<span class="lp-spec-v">{fmtStorage(plan.storageMb)}</span>
+							</li>
+						</ul>
+
+						<div class="lp-plan-divider"></div>
+
+						<ul class="lp-plan-features">
+							<li class="lp-plan-feat">✓ Papan publik</li>
+							{#if plan.features.customStatus}
+								<li class="lp-plan-feat">✓ Custom status</li>
+							{/if}
+							{#if plan.features.timelineFull}
+								<li class="lp-plan-feat">✓ Timeline lengkap</li>
+							{/if}
+							{#if plan.features.aiAutomation}
+								<li class="lp-plan-feat">✓ AI otomasi</li>
+							{/if}
+							{#if plan.features.export}
+								<li class="lp-plan-feat">✓ Export data</li>
+							{/if}
+							{#if plan.features.customBranding}
+								<li class="lp-plan-feat">✓ Custom branding</li>
+							{/if}
+						</ul>
+
+						<div class="lp-plan-action">
+							{#if data.isAuthenticated}
+								<a
+									href="/billing"
+									class={plan.isHighlighted ? 'lp-plan-btn lp-plan-btn--featured' : 'lp-plan-btn'}
+								>Kelola Plan</a
+								>
+							{:else if plan.price === 0}
+								<a
+									href="/login"
+									class={plan.isHighlighted ? 'lp-plan-btn lp-plan-btn--featured' : 'lp-plan-btn'}
+								>Mulai Gratis</a
+								>
+							{:else}
+								<a
+									href="/login"
+									class={plan.isHighlighted ? 'lp-plan-btn lp-plan-btn--featured' : 'lp-plan-btn'}
+								>Pilih {PLAN_LABELS[plan.name] ?? plan.name}</a
+								>
+							{/if}
+						</div>
+					</div>
+				{/each}
+			</div>
+		</div>
+	</section>
+{/if}
 
 <!-- CTA -->
 <section id="mulai" class="lp-cta">
@@ -1473,6 +1597,297 @@
 		.lp-footer-right {
 			text-align: left;
 		}
+
+		.lp-pricing {
+			padding: 4rem var(--lp-px);
+		}
+
+		.lp-plans {
+			grid-template-columns: 1fr;
+			gap: 1rem;
+		}
+
+		.lp-plan--featured {
+			margin-top: 0;
+			margin-bottom: 0;
+			padding-top: 2rem;
+			padding-bottom: 2rem;
+			order: -1; /* Show featured plan first on mobile */
+		}
+	}
+
+	/* ── Pricing ───────────────────────────────────── */
+	.lp-pricing {
+		background: var(--lp-warm);
+		padding: 6rem var(--lp-px);
+	}
+
+	.lp-pricing-inner {
+		max-width: var(--lp-max);
+		margin: 0 auto;
+		display: flex;
+		flex-direction: column;
+		gap: 3.5rem;
+	}
+
+	.lp-pricing-header {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+
+	.lp-pricing-heading {
+		font-family: var(--lp-display);
+		font-size: clamp(2rem, 3.5vw, 3rem);
+		font-weight: 400;
+		line-height: 1.1;
+		letter-spacing: -0.025em;
+		color: var(--lp-ink);
+		margin: 0;
+	}
+
+	.lp-pricing-heading em {
+		font-style: italic;
+		color: var(--lp-accent);
+	}
+
+	.lp-pricing-sub {
+		font-size: 1rem;
+		color: var(--lp-muted);
+		font-family: var(--lp-sans);
+		margin: 0;
+	}
+
+	.lp-plans {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		align-items: stretch;
+		gap: 1.25rem;
+	}
+
+	.lp-plan {
+		background: #fff;
+		border: 1px solid var(--lp-border);
+		border-radius: 14px;
+		padding: 2rem;
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+		position: relative;
+		transition: box-shadow 0.2s;
+	}
+
+	.lp-plan:hover {
+		box-shadow: 0 8px 32px rgba(28, 25, 23, 0.08);
+	}
+
+	.lp-plan--featured {
+		background: var(--lp-ink);
+		border-color: var(--lp-ink);
+		margin-top: -1.5rem;
+		margin-bottom: -1.5rem;
+		padding-top: 3.5rem;
+		padding-bottom: 3.5rem;
+		box-shadow: 0 8px 48px rgba(28, 25, 23, 0.18);
+	}
+
+	.lp-plan--featured:hover {
+		box-shadow: 0 12px 56px rgba(28, 25, 23, 0.24);
+	}
+
+	.lp-plan-badge {
+		position: absolute;
+		top: 1.75rem;
+		right: 1.5rem;
+		font-size: 0.5625rem;
+		font-weight: 700;
+		font-family: var(--lp-sans);
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--lp-accent);
+		background: rgba(192, 86, 33, 0.15);
+		padding: 4px 10px;
+		border-radius: 20px;
+		border: 1px solid rgba(192, 86, 33, 0.3);
+	}
+
+	.lp-plan-header {
+		display: flex;
+		flex-direction: column;
+		gap: 0.375rem;
+	}
+
+	.lp-plan-name {
+		font-family: var(--lp-display);
+		font-size: 1.75rem;
+		font-weight: 400;
+		line-height: 1;
+		letter-spacing: -0.02em;
+		color: var(--lp-ink);
+		margin: 0;
+	}
+
+	.lp-plan--featured .lp-plan-name {
+		color: #fff;
+	}
+
+	.lp-plan-price {
+		font-family: var(--lp-display);
+		font-size: 2.25rem;
+		font-weight: 600;
+		line-height: 1;
+		letter-spacing: -0.03em;
+		color: var(--lp-ink);
+	}
+
+	.lp-plan--featured .lp-plan-price {
+		color: #fff;
+	}
+
+	.lp-plan-period {
+		font-size: 0.8125rem;
+		font-family: var(--lp-sans);
+		color: var(--lp-muted);
+		font-weight: 400;
+	}
+
+	.lp-plan--featured .lp-plan-period {
+		color: rgba(255, 255, 255, 0.4);
+	}
+
+	.lp-plan-desc {
+		font-size: 0.9rem;
+		line-height: 1.6;
+		font-family: var(--lp-sans);
+		color: var(--lp-mid);
+		margin: 0;
+	}
+
+	.lp-plan--featured .lp-plan-desc {
+		color: rgba(255, 255, 255, 0.55);
+	}
+
+	.lp-plan-specs {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0;
+		border-top: 1px solid var(--lp-border);
+		border-bottom: 1px solid var(--lp-border);
+	}
+
+	.lp-plan--featured .lp-plan-specs {
+		border-color: rgba(255, 255, 255, 0.1);
+	}
+
+	.lp-plan-specs li {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: 0.75rem;
+		padding: 0.625rem 0;
+		border-bottom: 1px solid var(--lp-border);
+	}
+
+	.lp-plan--featured .lp-plan-specs li {
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	.lp-plan-specs li:last-child {
+		border-bottom: none;
+	}
+
+	.lp-spec-k {
+		font-size: 0.8125rem;
+		font-family: var(--lp-sans);
+		color: var(--lp-muted);
+		font-weight: 400;
+		flex-shrink: 0;
+	}
+
+	.lp-plan--featured .lp-spec-k {
+		color: rgba(255, 255, 255, 0.4);
+	}
+
+	.lp-spec-v {
+		font-size: 0.875rem;
+		font-family: var(--lp-sans);
+		color: var(--lp-ink);
+		font-weight: 500;
+		text-align: right;
+	}
+
+	.lp-plan--featured .lp-spec-v {
+		color: #fff;
+	}
+
+	.lp-plan-divider {
+		display: none; /* specs handle the visual separation already */
+	}
+
+	.lp-plan-features {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		flex: 1;
+	}
+
+	.lp-plan-feat {
+		font-size: 0.875rem;
+		font-family: var(--lp-sans);
+		color: var(--lp-mid);
+		font-weight: 400;
+		line-height: 1.4;
+	}
+
+	.lp-plan--featured .lp-plan-feat {
+		color: rgba(255, 255, 255, 0.7);
+	}
+
+	.lp-plan-action {
+		margin-top: auto;
+	}
+
+	.lp-plan-btn {
+		display: block;
+		width: 100%;
+		text-align: center;
+		text-decoration: none;
+		font-size: 0.9375rem;
+		font-weight: 600;
+		font-family: var(--lp-sans);
+		padding: 0.75rem 1.25rem;
+		border-radius: var(--lp-radius);
+		border: 1.5px solid var(--lp-border);
+		color: var(--lp-ink);
+		background: transparent;
+		transition:
+			background 0.15s,
+			border-color 0.15s,
+			transform 0.15s;
+	}
+
+	.lp-plan-btn:hover {
+		background: var(--lp-warm);
+		border-color: var(--lp-mid);
+		transform: translateY(-1px);
+	}
+
+	.lp-plan-btn--featured {
+		background: var(--lp-accent);
+		border-color: var(--lp-accent);
+		color: #fff;
+	}
+
+	.lp-plan-btn--featured:hover {
+		background: #a84a1a;
+		border-color: #a84a1a;
+		transform: translateY(-1px);
 	}
 
 	/* ── Responsive: Small mobile ──────────────────── */
